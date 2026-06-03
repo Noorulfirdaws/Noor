@@ -4,80 +4,103 @@
   <meta charset="UTF-8">
   <title>Taxi API Tester</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
     h1 { color: #333; }
-    h2 { color: #555; margin-top: 30px; }
+    h2 { color: #555; margin-top: 30px; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
     input { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-    button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-    button:hover { background: #45a049; }
-    .result { margin-top: 15px; padding: 15px; background: #fff; border-radius: 5px; border-left: 4px solid #4CAF50; white-space: pre-wrap; font-family: monospace; }
+    button { width: 100%; padding: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; background: #4CAF50; }
+    .result { margin-top: 15px; padding: 15px; background: #fff; border-radius: 5px; border-left: 4px solid #4CAF50; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
     .error { border-left-color: #f44336; }
+    #token-display { background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 12px; word-break: break-all; }
   </style>
 </head>
 <body>
-  <h1>🚕 Taxi Platform API Tester</h1>
+  <h1>Taxi Platform API Tester</h1>
+  <div id="token-display">Token: <span id="token-val">Not logged in</span></div>
 
-  <h2>Register</h2>
+  <h2>1. Register</h2>
   <input id="reg-name" placeholder="Full Name" value="John Doe" />
   <input id="reg-email" placeholder="Email" value="john@example.com" />
   <input id="reg-password" placeholder="Password" value="password123" />
-  <button onclick="register()">Register</button>
+  <button onclick="doRegister()">Register</button>
   <div id="reg-result" class="result" style="display:none"></div>
 
-  <h2>Login</h2>
+  <h2>2. Login</h2>
   <input id="login-email" placeholder="Email" value="john@example.com" />
   <input id="login-password" placeholder="Password" value="password123" />
-  <button onclick="login()" style="background:#2196F3">Login</button>
+  <button onclick="doLogin()" style="background:#2196F3">Login</button>
   <div id="login-result" class="result" style="display:none"></div>
 
-  <script>
-    const API = 'http://localhost:3000/api/auth';
+  <h2>3. Request a Trip</h2>
+  <input id="pickup" placeholder="Pickup Location" value="123 Main St" />
+  <input id="dropoff" placeholder="Dropoff Location" value="456 Oak Ave" />
+  <button onclick="doRequestTrip()" style="background:#FF9800">Request Trip</button>
+  <div id="trip-result" class="result" style="display:none"></div>
 
-    async function register() {
-      const body = {
+  <h2>4. Get All Trips</h2>
+  <button onclick="doGetTrips()" style="background:#9C27B0">Get All Trips</button>
+  <div id="trips-result" class="result" style="display:none"></div>
+
+  <script>
+    var API = 'http://localhost:3000/api';
+    var token = '';
+
+    function getHeaders() {
+      return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    }
+
+    function showResult(id, data, ok) {
+      var div = document.getElementById(id);
+      div.style.display = 'block';
+      div.className = ok ? 'result' : 'result error';
+      div.textContent = JSON.stringify(data, null, 2);
+    }
+
+    function doRegister() {
+      var body = {
         name: document.getElementById('reg-name').value,
         email: document.getElementById('reg-email').value,
         password: document.getElementById('reg-password').value
       };
-      const div = document.getElementById('reg-result');
-      try {
-        const res = await fetch(`${API}/register`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        div.style.display = 'block';
-        div.className = res.ok ? 'result' : 'result error';
-        div.textContent = JSON.stringify(data, null, 2);
-      } catch (e) {
-        div.style.display = 'block';
-        div.className = 'result error';
-        div.textContent = 'Error: Make sure server is running on port 3000';
-      }
+      fetch(API + '/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(function(res) { return res.json().then(function(data) { return { data: data, ok: res.ok }; }); })
+        .then(function(r) {
+          if (r.data.token) { token = r.data.token; document.getElementById('token-val').textContent = token.substring(0, 50) + '...'; }
+          showResult('reg-result', r.data, r.ok);
+        })
+        .catch(function() { showResult('reg-result', { error: 'Server not running' }, false); });
     }
 
-    async function login() {
-      const body = {
+    function doLogin() {
+      var body = {
         email: document.getElementById('login-email').value,
         password: document.getElementById('login-password').value
       };
-      const div = document.getElementById('login-result');
-      try {
-        const res = await fetch(`${API}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        div.style.display = 'block';
-        div.className = res.ok ? 'result' : 'result error';
-        div.textContent = JSON.stringify(data, null, 2);
-      } catch (e) {
-        div.style.display = 'block';
-        div.className = 'result error';
-        div.textContent = 'Error: Make sure server is running on port 3000';
-      }
+      fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(function(res) { return res.json().then(function(data) { return { data: data, ok: res.ok }; }); })
+        .then(function(r) {
+          if (r.data.token) { token = r.data.token; document.getElementById('token-val').textContent = token.substring(0, 50) + '...'; }
+          showResult('login-result', r.data, r.ok);
+        })
+        .catch(function() { showResult('login-result', { error: 'Server not running' }, false); });
+    }
+
+    function doRequestTrip() {
+      var body = {
+        pickupLocation: document.getElementById('pickup').value,
+        dropoffLocation: document.getElementById('dropoff').value
+      };
+      fetch(API + '/trips/request', { method: 'POST', headers: getHeaders(), body: JSON.stringify(body) })
+        .then(function(res) { return res.json().then(function(data) { return { data: data, ok: res.ok }; }); })
+        .then(function(r) { showResult('trip-result', r.data, r.ok); })
+        .catch(function() { showResult('trip-result', { error: 'Server not running' }, false); });
+    }
+
+    function doGetTrips() {
+      fetch(API + '/trips', { headers: getHeaders() })
+        .then(function(res) { return res.json().then(function(data) { return { data: data, ok: res.ok }; }); })
+        .then(function(r) { showResult('trips-result', r.data, r.ok); })
+        .catch(function() { showResult('trips-result', { error: 'Server not running' }, false); });
     }
   </script>
 </body>

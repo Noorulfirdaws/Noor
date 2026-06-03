@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './auth/auth.routes';
 import userRoutes from './users/users.routes';
+import driverRoutes from './drivers/drivers.routes';
+import tripRoutes from './trips/trips.routes';
 
 dotenv.config();
 
@@ -23,9 +25,11 @@ app.get('/', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/drivers', driverRoutes);
+app.use('/api/trips', tripRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port 3000`);
 });
 
 export default app;
