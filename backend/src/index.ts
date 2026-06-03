@@ -19,7 +19,13 @@ app.use(helmet());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.json({ message: 'Taxi Platform API is running!', status: 'ok' });
+  res.json({
+    app: 'Djib Taxi',
+    message: 'API is running!',
+    status: 'ok',
+    version: '1.0.0',
+    country: 'Djibouti'
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -30,7 +36,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/complaints', complaintRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Server running on port 3000`);
+  console.log(`Djib Taxi API running on port ${PORT}`);
 });
 
 export default app;
