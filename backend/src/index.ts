@@ -8,6 +8,7 @@ import driverRoutes from './drivers/drivers.routes';
 import tripRoutes from './trips/trips.routes';
 import reviewRoutes from './reviews/reviews.routes';
 import complaintRoutes from './complaints/complaints.routes';
+import adminRoutes from './admin/admin.routes';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.listen(PORT, () => {
   console.log(`Djib Taxi API running on port ${PORT}`);
