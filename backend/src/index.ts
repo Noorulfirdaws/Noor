@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import { initDatabase } from './db.init';
 import authRoutes from './auth/auth.routes';
 import userRoutes from './users/users.routes';
 import driverRoutes from './drivers/drivers.routes';
@@ -37,8 +38,13 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Djib Taxi API running on port ${PORT}`);
-});
+const start = async () => {
+  await initDatabase();
+  app.listen(PORT, () => {
+    console.log(`Djib Taxi API running on port ${PORT}`);
+  });
+};
+
+start();
 
 export default app;
