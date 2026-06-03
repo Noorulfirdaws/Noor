@@ -3,8 +3,11 @@ import { AuthRequest } from '../auth/auth.middleware';
 import {
   requestTrip,
   acceptTrip,
+  driverArrived,
   startTrip,
   completeTrip,
+  customerNoShow,
+  driverNoShow,
   cancelTrip,
   getTrips,
   getTripById,
@@ -19,7 +22,11 @@ export const request = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Pickup and dropoff locations are required' });
     }
     const trip = requestTrip(req.user!.id, pickupLocation, dropoffLocation);
-    return res.status(201).json({ message: 'Trip requested successfully', trip });
+    return res.status(201).json({
+      message: 'Trip requested successfully',
+      trip,
+      notice: `A deposit of ${trip.deposit} DJF will be charged`
+    });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
@@ -35,11 +42,24 @@ export const accept = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const arrived = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const result = driverArrived(id, req.user!.id);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
 export const start = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const trip = startTrip(id, req.user!.id);
-    return res.status(200).json({ message: 'Trip started', trip });
+    const result = startTrip(id, req.user!.id);
+    return res.status(200).json({
+      message: 'Trip started',
+      ...result
+    });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
@@ -48,8 +68,32 @@ export const start = async (req: AuthRequest, res: Response) => {
 export const complete = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const trip = completeTrip(id, req.user!.id);
-    return res.status(200).json({ message: 'Trip completed', trip });
+    const { baseFare } = req.body;
+    if (!baseFare) {
+      return res.status(400).json({ message: 'Base fare is required' });
+    }
+    const result = completeTrip(id, req.user!.id, baseFare);
+    return res.status(200).json({ message: 'Trip completed', ...result });
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const reportCustomerNoShow = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const result = customerNoShow(id, req.user!.id);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const reportDriverNoShow = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const result = driverNoShow(id, req.user!.id);
+    return res.status(200).json(result);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
