@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export interface Driver {
   id: string;
   userId: string;
@@ -26,7 +28,7 @@ export const registerDriver = (data: {
   const existing = drivers.find(d => d.email === data.email);
   if (existing) throw new Error('Driver already registered');
   const driver: Driver = {
-    id: Math.random().toString(36).substr(2, 9),
+    id: uuidv4(),
     ...data,
     status: 'pending',
     isOnline: false,

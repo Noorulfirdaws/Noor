@@ -1,6 +1,8 @@
-export type TripStatus = 
-  'requested' | 'accepted' | 'driver_arrived' | 'waiting' | 
-  'in_progress' | 'completed' | 'cancelled' | 
+import { v4 as uuidv4 } from 'uuid';
+
+export type TripStatus =
+  'requested' | 'accepted' | 'driver_arrived' | 'waiting' |
+  'in_progress' | 'completed' | 'cancelled' |
   'customer_no_show' | 'driver_no_show';
 
 export interface Trip {
@@ -27,7 +29,7 @@ const WAITING_FEE_PER_MINUTE = 50; // 50 DJF per minute after free period
 
 export const requestTrip = (customerId: string, pickupLocation: string, dropoffLocation: string) => {
   const trip: Trip = {
-    id: Math.random().toString(36).substr(2, 9),
+    id: uuidv4(),
     customerId,
     pickupLocation,
     dropoffLocation,

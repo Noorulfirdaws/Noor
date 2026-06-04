@@ -56,10 +56,7 @@ export const start = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const result = startTrip(id, req.user!.id);
-    return res.status(200).json({
-      message: 'Trip started',
-      ...result
-    });
+    return res.status(200).json({ message: 'Trip started', ...result });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
@@ -111,6 +108,7 @@ export const cancel = async (req: AuthRequest, res: Response) => {
 
 export const getAllTrips = async (req: AuthRequest, res: Response) => {
   try {
+    console.log('getAllTrips called, user:', req.user);
     const allTrips = getTrips();
     return res.status(200).json(allTrips);
   } catch (error: any) {

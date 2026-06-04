@@ -28,4 +28,4 @@ router.put('/:id/customer-no-show', protect, reportCustomerNoShow);
 router.put('/:id/driver-no-show', protect, reportDriverNoShow);
 router.put('/:id/cancel', protect, cancel);
 
-export default router
+export default router;

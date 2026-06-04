@@ -24,6 +24,9 @@ export const getUser = async (req: AuthRequest, res: Response) => {
 export const updateUserProfile = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+    if (req.user!.id !== id && req.user!.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
     const user = updateUser(id, req.body);
     return res.status(200).json({ message: 'User updated successfully', user });
   } catch (error: any) {
@@ -34,6 +37,9 @@ export const updateUserProfile = async (req: AuthRequest, res: Response) => {
 export const removeUser = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+    if (req.user!.id !== id && req.user!.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
     const result = deleteUser(id);
     return res.status(200).json(result);
   } catch (error: any) {

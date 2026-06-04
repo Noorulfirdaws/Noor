@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export type ComplaintStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
 
 export interface Complaint {
@@ -22,7 +24,7 @@ export const createComplaint = (
   description: string
 ) => {
   const complaint: Complaint = {
-    id: Math.random().toString(36).substr(2, 9),
+    id: uuidv4(),
     tripId,
     userId,
     against,

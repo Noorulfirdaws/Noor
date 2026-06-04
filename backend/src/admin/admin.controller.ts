@@ -1,23 +1,23 @@
 import { Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
 import { getStats, getPendingDrivers, getOpenComplaints } from './admin.service';
-import { users } from '../auth/auth.service';
+import { getAllUsers } from '../auth/auth.service';
 import { drivers, approveDriver, rejectDriver } from '../drivers/drivers.service';
 import { trips } from '../trips/trips.service';
 import { complaints, updateComplaintStatus } from '../complaints/complaints.service';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const stats = getStats();
+    const stats = await getStats();
     return res.status(200).json(stats);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
 };
 
-export const getAllUsers = async (req: AuthRequest, res: Response) => {
+export const getAllUsersAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const allUsers = users.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role }));
+    const allUsers = await getAllUsers();
     return res.status(200).json(allUsers);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -61,7 +61,7 @@ export const rejectDriverAdmin = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllTrips = async (req: AuthRequest, res: Response) => {
+export const getAllTripsAdmin = async (req: AuthRequest, res: Response) => {
   try {
     return res.status(200).json(trips);
   } catch (error: any) {
@@ -69,7 +69,7 @@ export const getAllTrips = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllComplaints = async (req: AuthRequest, res: Response) => {
+export const getAllComplaintsAdmin = async (req: AuthRequest, res: Response) => {
   try {
     const open = getOpenComplaints();
     return res.status(200).json({ open: open.length, complaints: open });

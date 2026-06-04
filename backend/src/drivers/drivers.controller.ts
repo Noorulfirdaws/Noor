@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
+import { users } from '../auth/auth.service';
 import {
   registerDriver,
   getAllDrivers,
@@ -15,10 +16,12 @@ export const register = async (req: AuthRequest, res: Response) => {
     if (!phone || !licenseNumber || !vehicleModel || !vehiclePlate) {
       return res.status(400).json({ message: 'All fields are required' });
     }
+    const currentUser = users.find(u => u.id === req.user!.id);
+    if (!currentUser) return res.status(404).json({ message: 'User not found' });
     const driver = registerDriver({
       userId: req.user!.id,
-      name: req.user!.email,
-      email: req.user!.email,
+      name: currentUser.name,
+      email: currentUser.email,
       phone,
       licenseNumber,
       vehicleModel,

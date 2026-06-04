@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export interface Review {
   id: string;
   tripId: string;
@@ -22,7 +24,7 @@ export const createReview = (
   if (existing) throw new Error('You already reviewed this trip');
 
   const review: Review = {
-    id: Math.random().toString(36).substr(2, 9),
+    id: uuidv4(),
     tripId,
     customerId,
     driverId,

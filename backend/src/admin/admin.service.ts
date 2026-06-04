@@ -1,10 +1,11 @@
-import { users } from '../auth/auth.service';
+import { getAllUsers } from '../auth/auth.service';
 import { drivers } from '../drivers/drivers.service';
 import { trips } from '../trips/trips.service';
 import { complaints } from '../complaints/complaints.service';
 import { reviews } from '../reviews/reviews.service';
 
-export const getStats = () => {
+export const getStats = async () => {
+  const users = await getAllUsers();
   const totalUsers = users.length;
   const totalDrivers = drivers.length;
   const approvedDrivers = drivers.filter(d => d.status === 'approved').length;
