@@ -29,8 +29,12 @@ CREATE TABLE IF NOT EXISTS trips (
   driver_id UUID REFERENCES drivers(id),
   pickup_location VARCHAR(255) NOT NULL,
   dropoff_location VARCHAR(255) NOT NULL,
-  status VARCHAR(20) DEFAULT 'requested',
+  status VARCHAR(30) DEFAULT 'requested',
   fare DECIMAL(10,2),
+  deposit DECIMAL(10,2) DEFAULT 200,
+  waiting_fee DECIMAL(10,2) DEFAULT 0,
+  waiting_minutes INTEGER DEFAULT 0,
+  arrived_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -55,4 +59,14 @@ CREATE TABLE IF NOT EXISTS complaints (
   status VARCHAR(20) DEFAULT 'open',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  role VARCHAR(20) NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  status VARCHAR(20) DEFAULT 'active',
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
 );

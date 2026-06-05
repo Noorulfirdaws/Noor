@@ -21,7 +21,7 @@ export const request = async (req: AuthRequest, res: Response) => {
     if (!pickupLocation || !dropoffLocation) {
       return res.status(400).json({ message: 'Pickup and dropoff locations are required' });
     }
-    const trip = requestTrip(req.user!.id, pickupLocation, dropoffLocation);
+    const trip = await requestTrip(req.user!.id, pickupLocation, dropoffLocation);
     return res.status(201).json({
       message: 'Trip requested successfully',
       trip,
@@ -35,7 +35,7 @@ export const request = async (req: AuthRequest, res: Response) => {
 export const accept = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const trip = acceptTrip(id, req.user!.id);
+    const trip = await acceptTrip(id, req.user!.id);
     return res.status(200).json({ message: 'Trip accepted', trip });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -45,7 +45,7 @@ export const accept = async (req: AuthRequest, res: Response) => {
 export const arrived = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const result = driverArrived(id, req.user!.id);
+    const result = await driverArrived(id, req.user!.id);
     return res.status(200).json(result);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -55,7 +55,7 @@ export const arrived = async (req: AuthRequest, res: Response) => {
 export const start = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const result = startTrip(id, req.user!.id);
+    const result = await startTrip(id, req.user!.id);
     return res.status(200).json({ message: 'Trip started', ...result });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -69,7 +69,7 @@ export const complete = async (req: AuthRequest, res: Response) => {
     if (!baseFare) {
       return res.status(400).json({ message: 'Base fare is required' });
     }
-    const result = completeTrip(id, req.user!.id, baseFare);
+    const result = await completeTrip(id, req.user!.id, baseFare);
     return res.status(200).json({ message: 'Trip completed', ...result });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -79,7 +79,7 @@ export const complete = async (req: AuthRequest, res: Response) => {
 export const reportCustomerNoShow = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const result = customerNoShow(id, req.user!.id);
+    const result = await customerNoShow(id, req.user!.id);
     return res.status(200).json(result);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -89,7 +89,7 @@ export const reportCustomerNoShow = async (req: AuthRequest, res: Response) => {
 export const reportDriverNoShow = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const result = driverNoShow(id, req.user!.id);
+    const result = await driverNoShow(id, req.user!.id);
     return res.status(200).json(result);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -99,7 +99,7 @@ export const reportDriverNoShow = async (req: AuthRequest, res: Response) => {
 export const cancel = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const trip = cancelTrip(id, req.user!.id);
+    const trip = await cancelTrip(id, req.user!.id);
     return res.status(200).json({ message: 'Trip cancelled', trip });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -108,8 +108,7 @@ export const cancel = async (req: AuthRequest, res: Response) => {
 
 export const getAllTrips = async (req: AuthRequest, res: Response) => {
   try {
-    console.log('getAllTrips called, user:', req.user);
-    const allTrips = getTrips();
+    const allTrips = await getTrips();
     return res.status(200).json(allTrips);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
@@ -119,7 +118,7 @@ export const getAllTrips = async (req: AuthRequest, res: Response) => {
 export const getTrip = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const trip = getTripById(id);
+    const trip = await getTripById(id);
     return res.status(200).json(trip);
   } catch (error: any) {
     return res.status(404).json({ message: error.message });
@@ -130,7 +129,7 @@ export const myTrips = async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user!.role;
     const id = req.user!.id;
-    const result = role === 'driver' ? getTripsByDriver(id) : getTripsByCustomer(id);
+    const result = role === 'driver' ? await getTripsByDriver(id) : await getTripsByCustomer(id);
     return res.status(200).json(result);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
