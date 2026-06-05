@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   getDashboardStats,
   getAllUsersAdmin,
-  getAllDrivers,
+  getAllDriversAdmin,
   getPending,
   approveDriverAdmin,
   rejectDriverAdmin,
@@ -16,7 +16,7 @@ const router = Router();
 
 router.get('/stats', protect, getDashboardStats);
 router.get('/users', protect, getAllUsersAdmin);
-router.get('/drivers', protect, getAllDrivers);
+router.get('/drivers', protect, getAllDriversAdmin);
 router.get('/drivers/pending', protect, getPending);
 router.put('/drivers/:id/approve', protect, approveDriverAdmin);
 router.put('/drivers/:id/reject', protect, rejectDriverAdmin);

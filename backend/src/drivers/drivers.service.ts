@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import pool from '../database';
 
 export interface Driver {
   id: string;
@@ -14,9 +14,7 @@ export interface Driver {
   createdAt: Date;
 }
 
-export const drivers: Driver[] = [];
-
-export const registerDriver = (data: {
+export const registerDriver = async (data: {
   userId: string;
   name: string;
   email: string;
@@ -25,45 +23,54 @@ export const registerDriver = (data: {
   vehicleModel: string;
   vehiclePlate: string;
 }) => {
-  const existing = drivers.find(d => d.email === data.email);
-  if (existing) throw new Error('Driver already registered');
-  const driver: Driver = {
-    id: uuidv4(),
-    ...data,
-    status: 'pending',
-    isOnline: false,
-    createdAt: new Date()
-  };
-  drivers.push(driver);
-  return driver;
+  const existing = await pool.query('SELECT id FROM drivers WHERE email = $1', [data.email]);
+  if (existing.rows.length > 0) throw new Error('Driver already registered');
+
+  const result = await pool.query(
+    `INSERT INTO drivers (user_id, name, email, phone, license_number, vehicle_model, vehicle_plate, status, is_online)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', false)
+     RETURNING *`,
+    [data.userId, data.name, data.email, data.phone, data.licenseNumber, data.vehicleModel, data.vehiclePlate]
+  );
+  return result.rows[0];
 };
 
-export const getAllDrivers = () => drivers;
-
-export const getDriverById = (id: string) => {
-  const driver = drivers.find(d => d.id === id);
-  if (!driver) throw new Error('Driver not found');
-  return driver;
+export const getAllDrivers = async () => {
+  const result = await pool.query('SELECT * FROM drivers ORDER BY created_at DESC');
+  return result.rows;
 };
 
-export const approveDriver = (id: string) => {
-  const driver = drivers.find(d => d.id === id);
-  if (!driver) throw new Error('Driver not found');
-  driver.status = 'approved';
-  return driver;
+export const getDriverById = async (id: string) => {
+  const result = await pool.query('SELECT * FROM drivers WHERE id = $1', [id]);
+  if (result.rows.length === 0) throw new Error('Driver not found');
+  return result.rows[0];
 };
 
-export const rejectDriver = (id: string) => {
-  const driver = drivers.find(d => d.id === id);
-  if (!driver) throw new Error('Driver not found');
-  driver.status = 'rejected';
-  return driver;
+export const approveDriver = async (id: string) => {
+  const result = await pool.query(
+    'UPDATE drivers SET status = $1 WHERE id = $2 RETURNING *',
+    ['approved', id]
+  );
+  if (result.rows.length === 0) throw new Error('Driver not found');
+  return result.rows[0];
 };
 
-export const toggleDriverOnline = (id: string) => {
-  const driver = drivers.find(d => d.id === id);
-  if (!driver) throw new Error('Driver not found');
+export const rejectDriver = async (id: string) => {
+  const result = await pool.query(
+    'UPDATE drivers SET status = $1 WHERE id = $2 RETURNING *',
+    ['rejected', id]
+  );
+  if (result.rows.length === 0) throw new Error('Driver not found');
+  return result.rows[0];
+};
+
+export const toggleDriverOnline = async (id: string) => {
+  const driver = await getDriverById(id);
   if (driver.status !== 'approved') throw new Error('Driver not approved yet');
-  driver.isOnline = !driver.isOnline;
-  return driver;
+  
+  const result = await pool.query(
+    'UPDATE drivers SET is_online = $1 WHERE id = $2 RETURNING *',
+    [!driver.is_online, id]
+  );
+  return result.rows[0];
 };
