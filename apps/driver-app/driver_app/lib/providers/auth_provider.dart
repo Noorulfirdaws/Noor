@@ -126,6 +126,34 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile(
+      String name, String fatherName, String grandfatherName) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.updateProfile(name, fatherName, grandfatherName);
+      if (result['user'] != null) {
+        _user = result['user'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', jsonEncode(_user));
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = result['message'] ?? 'Update failed';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Connection error.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> refreshDriverProfile() async {
     try {
       _driverProfile = await ApiService.getMyDriverProfile();

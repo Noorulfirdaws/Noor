@@ -5,6 +5,7 @@ import {
   getAllDrivers,
   getDriverById,
   getDriverByUserId,
+  getDriverStats,
   approveDriver,
   rejectDriver,
   toggleDriverOnline
@@ -40,6 +41,15 @@ export const getMe = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Driver profile not found' });
     }
     return res.status(200).json(driver);
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const getMyStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await getDriverStats(req.user!.id);
+    return res.status(200).json(stats);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }

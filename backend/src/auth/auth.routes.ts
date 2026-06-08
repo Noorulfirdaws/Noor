@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { register, login } from './auth.controller';
+import { register, login, updateProfile } from './auth.controller';
+import { protect } from './auth.middleware';
 
-const router = Router();router.get('/ping', (req, res) => res.json({ message: 'trips ping works' }));
+const router = Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.put('/profile', protect, updateProfile);
 
 export default router;

@@ -4,6 +4,8 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'request_trip_screen.dart';
+import 'complaint_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -242,6 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _loadTrips,
           ),
           IconButton(
+            icon: const Icon(Icons.person, color: Colors.white),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen())),
+          ),
+          IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await auth.logout();
@@ -395,6 +402,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(fontSize: 14))),
                 ]),
 
+                // Driver info (shown when driver is assigned)
+                if (trip['driver_name'] != null && status != 'requested') ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.drive_eta, color: Colors.blue, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            [trip['driver_name'], trip['driver_father_name'], trip['driver_grandfather_name']]
+                                .where((x) => x != null && x.toString().isNotEmpty)
+                                .join(' '),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          if (trip['vehicle_model'] != null)
+                            Text(
+                              '${trip['vehicle_model']} • ${trip['vehicle_plate'] ?? ''}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                        ],
+                      )),
+                    ]),
+                  ),
+                ],
+
                 // Fare info
                 if (status == 'completed' && fare != null) ...[
                   const SizedBox(height: 10),
@@ -405,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.attach_money, size: 16, color: Colors.green),
-                        Text('Fare: ${fare} DJF  |  Deposit: ${deposit ?? 200} DJF',
+                        Text('Fare: $fare DJF  |  Deposit: ${deposit ?? 200} DJF',
                             style: const TextStyle(fontSize: 12, color: Colors.grey)),
                       ],
                     ),
@@ -472,8 +511,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ]));
     }
 
+    // Complaint button for completed trips with a driver
+    if (status == 'completed' && trip['driver_id'] != null) {
+      if (actions.isNotEmpty) actions.add(const SizedBox(width: 8));
+      actions.add(_outlineBtn('Complaint', Colors.grey, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => ComplaintScreen(trip: trip)));
+      }));
+    }
+
     if (actions.isEmpty) return const SizedBox.shrink();
-    return Row(children: actions);
+    return Wrap(spacing: 8, runSpacing: 8, children: actions);
   }
 
   Widget _outlineBtn(String label, Color color, VoidCallback onTap) {

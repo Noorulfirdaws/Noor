@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -58,6 +60,34 @@ class AuthProvider extends ChangeNotifier {
         return true;
       } else {
         _error = result['message'] ?? 'Registration failed';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _error = 'Connection error. Please try again.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateProfile(
+      String name, String fatherName, String grandfatherName) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final result = await ApiService.updateProfile(name, fatherName, grandfatherName);
+      if (result['user'] != null) {
+        _user = result['user'];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', jsonEncode(_user));
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _error = result['message'] ?? 'Update failed';
         _isLoading = false;
         notifyListeners();
         return false;

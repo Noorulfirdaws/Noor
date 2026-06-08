@@ -85,3 +85,33 @@ export const getDriverByUserId = async (userId: string) => {
   if (result.rows.length === 0) return null;
   return result.rows[0];
 };
+
+export const getDriverStats = async (userId: string) => {
+  const [ratingRes, tripRes] = await Promise.all([
+    pool.query(
+      'SELECT COUNT(*) AS total, AVG(rating) AS average FROM reviews WHERE driver_id = $1',
+      [userId]
+    ),
+    pool.query(
+      `SELECT
+        COUNT(*) FILTER (WHERE status = 'completed')  AS completed,
+        COUNT(*) FILTER (WHERE status = 'cancelled')  AS cancelled,
+        COALESCE(SUM(fare) FILTER (WHERE status = 'completed'), 0) AS total_fare
+       FROM trips WHERE driver_id = $1`,
+      [userId]
+    ),
+  ]);
+  const r = ratingRes.rows[0];
+  const t = tripRes.rows[0];
+  return {
+    rating: {
+      average: r.average ? parseFloat(parseFloat(r.average).toFixed(1)) : null,
+      total: parseInt(r.total),
+    },
+    trips: {
+      completed: parseInt(t.completed),
+      cancelled: parseInt(t.cancelled),
+      totalFare: parseFloat(t.total_fare),
+    },
+  };
+};

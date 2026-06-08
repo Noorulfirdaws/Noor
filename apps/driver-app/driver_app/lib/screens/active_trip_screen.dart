@@ -250,6 +250,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   Widget _tripInfoCard() {
+    final customerName = [
+      _trip['customer_name'],
+      _trip['customer_father_name'],
+      _trip['customer_grandfather_name'],
+    ].where((x) => x != null && x.toString().isNotEmpty).join(' ');
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -257,9 +263,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Trip Details',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const Divider(),
+            if (customerName.isNotEmpty) ...[
+              _infoRow(Icons.person, Colors.purple, 'Customer', customerName),
+              const SizedBox(height: 8),
+            ],
             _infoRow(Icons.circle, Colors.green, 'Pickup',
                 _trip['pickup_location'] ?? ''),
             const SizedBox(height: 8),

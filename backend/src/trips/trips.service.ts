@@ -163,24 +163,52 @@ export const getTrips = async () => {
 };
 
 export const getTripById = async (tripId: string) => {
-  const result = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  const result = await pool.query(`
+    SELECT t.*,
+      du.name        AS driver_name,
+      du.father_name AS driver_father_name,
+      du.grandfather_name AS driver_grandfather_name,
+      dr.vehicle_model, dr.vehicle_plate, dr.phone AS driver_phone,
+      cu.name        AS customer_name,
+      cu.father_name AS customer_father_name,
+      cu.grandfather_name AS customer_grandfather_name
+    FROM trips t
+    LEFT JOIN users  du ON t.driver_id   = du.id
+    LEFT JOIN drivers dr ON dr.user_id   = t.driver_id
+    LEFT JOIN users  cu ON t.customer_id = cu.id
+    WHERE t.id = $1
+  `, [tripId]);
   if (result.rows.length === 0) throw new Error('Trip not found');
   return result.rows[0];
 };
 
 export const getTripsByCustomer = async (customerId: string) => {
-  const result = await pool.query(
-    'SELECT * FROM trips WHERE customer_id = $1 ORDER BY created_at DESC',
-    [customerId]
-  );
+  const result = await pool.query(`
+    SELECT t.*,
+      du.name        AS driver_name,
+      du.father_name AS driver_father_name,
+      du.grandfather_name AS driver_grandfather_name,
+      dr.vehicle_model, dr.vehicle_plate, dr.phone AS driver_phone
+    FROM trips t
+    LEFT JOIN users  du ON t.driver_id = du.id
+    LEFT JOIN drivers dr ON dr.user_id = t.driver_id
+    WHERE t.customer_id = $1
+    ORDER BY t.created_at DESC
+  `, [customerId]);
   return result.rows;
 };
 
 export const getTripsByDriver = async (driverId: string) => {
-  const result = await pool.query(
-    'SELECT * FROM trips WHERE driver_id = $1 ORDER BY created_at DESC',
-    [driverId]
-  );
+  const result = await pool.query(`
+    SELECT t.*,
+      cu.name        AS customer_name,
+      cu.father_name AS customer_father_name,
+      cu.grandfather_name AS customer_grandfather_name
+    FROM trips t
+    LEFT JOIN users cu ON t.customer_id = cu.id
+    WHERE t.driver_id = $1
+    ORDER BY t.created_at DESC
+  `, [driverId]);
   return result.rows;
 };
 

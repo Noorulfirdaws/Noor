@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'active_trip_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _activeTrip;
   bool _isLoading = false;
   Timer? _refreshTimer;
+  int _prevAvailableCount = 0;
 
   @override
   void initState() {
@@ -63,9 +65,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (!mounted) return;
+      // In-app alert when new trip requests appear
+      if (available.length > _prevAvailableCount && _prevAvailableCount >= 0) {
+        final newCount = available.length - _prevAvailableCount;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('$newCount new trip request${newCount > 1 ? 's' : ''}! 🚕'),
+          backgroundColor: const Color(0xFFFFB800),
+          duration: const Duration(seconds: 4),
+        ));
+      }
       setState(() {
         _activeTrip = active.isNotEmpty ? active.first as Map<String, dynamic> : null;
         _availableTrips = available;
+        _prevAvailableCount = available.length;
         _isLoading = false;
       });
     } catch (_) {
@@ -136,6 +148,11 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 onPressed: _loadData,
+              ),
+              IconButton(
+                icon: const Icon(Icons.person, color: Colors.white),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen())),
               ),
               IconButton(
                 icon: const Icon(Icons.logout, color: Colors.white),
@@ -366,6 +383,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              if (trip['customer_name'] != null)
+                Row(children: [
+                  const Icon(Icons.person, color: Colors.green, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    [trip['customer_name'], trip['customer_father_name'], trip['customer_grandfather_name']]
+                        .where((x) => x != null && x.toString().isNotEmpty)
+                        .join(' '),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ]),
+              const SizedBox(height: 6),
               Row(
                 children: [
                   const Icon(Icons.circle, color: Colors.green, size: 12),

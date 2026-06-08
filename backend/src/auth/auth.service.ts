@@ -83,6 +83,27 @@ export const getUserById = async (id: string) => {
   return result.rows[0];
 };
 
+export const updateUserProfile = async (
+  id: string,
+  data: { name?: string; fatherName?: string; grandfatherName?: string }
+) => {
+  const fields: string[] = [];
+  const values: any[] = [];
+  let idx = 1;
+  if (data.name)             { fields.push(`name = $${idx++}`);             values.push(data.name); }
+  if (data.fatherName)       { fields.push(`father_name = $${idx++}`);      values.push(data.fatherName); }
+  if (data.grandfatherName)  { fields.push(`grandfather_name = $${idx++}`); values.push(data.grandfatherName); }
+  if (fields.length === 0) throw new Error('No fields to update');
+  values.push(id);
+  const result = await pool.query(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
+     RETURNING id, name, father_name, grandfather_name, email, role`,
+    values
+  );
+  if (result.rows.length === 0) throw new Error('User not found');
+  return result.rows[0];
+};
+
 export const getAllUsers = async () => {
   const result = await pool.query(
     'SELECT id, name, father_name, grandfather_name, email, role, created_at FROM users'

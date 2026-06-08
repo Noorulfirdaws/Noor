@@ -127,4 +127,37 @@ class ApiService {
       await prefs.setStringList('rated_trips', rated);
     }
   }
+
+  // ── Complaints ────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> submitComplaint(
+      String tripId, String against, String reason, String description) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/complaints'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'tripId': tripId,
+        'against': against,
+        'reason': reason,
+        'description': description,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> updateProfile(
+      String name, String fatherName, String grandfatherName) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/auth/profile'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'name': name,
+        'fatherName': fatherName,
+        'grandfatherName': grandfatherName,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
 }
