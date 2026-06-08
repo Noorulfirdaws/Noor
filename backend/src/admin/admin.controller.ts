@@ -1,10 +1,13 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../auth/auth.middleware';
 import { getStats, getPendingDrivers, getOpenComplaints } from './admin.service';
-import { getAllUsers } from '../auth/auth.service';
+import { getAllUsers, registerUser } from '../auth/auth.service';
 import { getAllDrivers, approveDriver, rejectDriver } from '../drivers/drivers.service';
 import { getTrips } from '../trips/trips.service';
 import { updateComplaintStatus, getAllComplaints } from '../complaints/complaints.service';
+import pool from '../database';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
@@ -87,6 +90,28 @@ export const resolveComplaintAdmin = async (req: AuthRequest, res: Response) => 
     const { status } = req.body;
     const complaint = await updateComplaintStatus(id, status);
     return res.status(200).json({ message: 'Complaint updated', complaint });
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const setupAdmin = async (req: Request, res: Response) => {
+  try {
+    const { name, fatherName, grandfatherName, email, password, secret } = req.body;
+    if (secret !== process.env.ADMIN_SECRET) {
+      return res.status(403).json({ message: 'Invalid setup secret' });
+    }
+    if (!name || !fatherName || !grandfatherName || !email || !password) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+    );
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ message: 'Admin already exists' });
+    }
+    const result = await registerUser(name, fatherName, grandfatherName, email, password, 'admin' as any);
+    return res.status(201).json({ message: 'Admin account created', user: result.user, token: result.token });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }

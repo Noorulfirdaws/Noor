@@ -9,7 +9,9 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Name, father name, grandfather name, email and password are required' });
     }
 
-    const result = await registerUser(name, fatherName, grandfatherName, email, password, role);
+    const safeRole: 'customer' | 'driver' =
+      role === 'driver' ? 'driver' : 'customer';
+    const result = await registerUser(name, fatherName, grandfatherName, email, password, safeRole);
     return res.status(201).json({ message: 'User registered successfully', ...result });
 
   } catch (error: any) {

@@ -36,7 +36,12 @@ export const registerDriver = async (data: {
 };
 
 export const getAllDrivers = async () => {
-  const result = await pool.query('SELECT * FROM drivers ORDER BY created_at DESC');
+  const result = await pool.query(`
+    SELECT d.*, u.father_name, u.grandfather_name
+    FROM drivers d
+    LEFT JOIN users u ON d.user_id = u.id
+    ORDER BY d.created_at DESC
+  `);
   return result.rows;
 };
 

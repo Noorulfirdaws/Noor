@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Djib Taxi — Admin Panel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;color:#333}
+
+/* ── Login ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)}
+.login-box{background:#fff;border-radius:16px;padding:40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .taxi-icon{font-size:48px}
+.login-logo h1{font-size:22px;color:#1a1a2e;margin-top:8px}
+.login-logo p{color:#888;font-size:14px}
+.login-box input{width:100%;padding:12px 14px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:15px;margin-bottom:14px;transition:.2s}
+.login-box input:focus{outline:none;border-color:#FFB800}
+.login-box button{width:100%;padding:13px;background:#FFB800;border:none;border-radius:8px;font-size:16px;font-weight:700;color:#1a1a2e;cursor:pointer;transition:.2s}
+.login-box button:hover{background:#e6a500}
+.login-error{color:#e74c3c;font-size:13px;margin-bottom:10px;display:none}
+.setup-link{text-align:center;margin-top:16px;font-size:13px;color:#888}
+.setup-link a{color:#FFB800;cursor:pointer;text-decoration:none}
+
+/* ── Setup modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center}
+.modal-bg.active{display:flex}
+.modal{background:#fff;border-radius:12px;padding:32px;width:420px;box-shadow:0 10px 40px rgba(0,0,0,0.3)}
+.modal h2{margin-bottom:6px;font-size:18px}
+.modal p{color:#888;font-size:13px;margin-bottom:20px}
+.modal input{width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:12px}
+.modal input:focus{outline:none;border-color:#FFB800}
+.modal-actions{display:flex;gap:10px;margin-top:4px}
+.modal-actions button{flex:1;padding:11px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.btn-cancel{background:#f0f2f5;color:#555}
+.btn-primary{background:#FFB800;color:#1a1a2e}
+.btn-primary:hover{background:#e6a500}
+.modal-msg{font-size:13px;margin-top:8px;min-height:18px}
+
+/* ── App shell ── */
+#app{display:none;min-height:100vh;flex-direction:row}
+.sidebar{width:240px;min-height:100vh;background:#1a1a2e;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-logo .taxi{font-size:22px;font-weight:800;color:#FFB800}
+.sidebar-logo .sub{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;margin-top:2px}
+.sidebar nav{flex:1;padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:12px;padding:12px 20px;color:rgba(255,255,255,.6);cursor:pointer;font-size:14px;transition:.15s;border-left:3px solid transparent}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.07)}
+.nav-item.active{color:#FFB800;border-left-color:#FFB800;background:rgba(255,184,0,.08)}
+.nav-item .icon{font-size:18px;width:22px;text-align:center}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1)}
+.logout-btn{display:flex;align-items:center;gap:10px;color:rgba(255,255,255,.5);cursor:pointer;font-size:14px;padding:8px 0}
+.logout-btn:hover{color:#e74c3c}
+
+.main{margin-left:240px;flex:1;padding:28px}
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:24px}
+.page-header h2{font-size:22px;font-weight:700;color:#1a1a2e}
+.page-header p{color:#888;font-size:14px;margin-top:4px}
+
+/* ── Stats cards ── */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-card .label{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.stat-card .value{font-size:28px;font-weight:800;color:#1a1a2e}
+.stat-card .sub{font-size:12px;color:#aaa;margin-top:4px}
+.stat-card.yellow .value{color:#FFB800}
+.stat-card.green .value{color:#27ae60}
+.stat-card.blue .value{color:#2980b9}
+.stat-card.red .value{color:#e74c3c}
+
+/* ── Tables ── */
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-header h3{font-size:15px;font-weight:700}
+.refresh-btn{background:#f0f2f5;border:none;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;color:#555}
+.refresh-btn:hover{background:#e0e2e5}
+.tab-bar{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:7px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;background:#f0f2f5;color:#555;font-weight:500}
+.tab.active{background:#FFB800;color:#1a1a2e}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 12px;background:#f8f9fb;font-weight:600;color:#555;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+td{padding:11px 12px;border-bottom:1px solid #f0f2f5;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.empty{text-align:center;padding:40px;color:#aaa;font-size:14px}
+
+/* ── Badges ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.badge-pending{background:#fff3cd;color:#856404}
+.badge-approved{background:#d4edda;color:#155724}
+.badge-rejected{background:#f8d7da;color:#721c24}
+.badge-suspended{background:#e2e3e5;color:#383d41}
+.badge-requested{background:#fff3cd;color:#856404}
+.badge-accepted{background:#cce5ff;color:#004085}
+.badge-driver_arrived{background:#d1ecf1;color:#0c5460}
+.badge-in_progress{background:#d4edda;color:#155724}
+.badge-completed{background:#e2e3e5;color:#383d41}
+.badge-cancelled{background:#f8d7da;color:#721c24}
+.badge-customer{background:#e8f4fd;color:#1a5276}
+.badge-driver{background:#e8f8f5;color:#1a5c47}
+.badge-admin{background:#f4ecf7;color:#6c3483}
+.badge-open{background:#fff3cd;color:#856404}
+.badge-investigating{background:#cce5ff;color:#004085}
+.badge-resolved{background:#d4edda;color:#155724}
+.badge-dismissed{background:#e2e3e5;color:#383d41}
+
+/* ── Action buttons ── */
+.btn-approve{background:#27ae60;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600}
+.btn-approve:hover{background:#219a52}
+.btn-reject{background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600;margin-left:4px}
+.btn-reject:hover{background:#c0392b}
+.btn-sm{border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600}
+select.status-select{padding:4px 8px;border-radius:6px;border:1px solid #ddd;font-size:12px;cursor:pointer}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-left:4px solid #27ae60}
+.toast.error{border-left:4px solid #e74c3c}
+
+.loading{text-align:center;padding:32px;color:#aaa}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid #f0f2f5;border-top-color:#FFB800;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="taxi-icon">🚕</div>
+      <h1>Djib Taxi Admin</h1>
+      <p>Sign in to your admin account</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <input type="email" id="login-email" placeholder="Admin email" value=""/>
+    <input type="password" id="login-password" placeholder="Password"/>
+    <button onclick="doLogin()">Sign In</button>
+    <div class="setup-link">First time? <a onclick="openSetup()">Create admin account</a></div>
+  </div>
+</div>
+
+<!-- ══ SETUP MODAL ════════════════════════════════════════════ -->
+<div class="modal-bg" id="setup-modal">
+  <div class="modal">
+    <h2>Create Admin Account</h2>
+    <p>One-time setup. Requires the admin secret from your <code>.env</code> file.</p>
+    <input type="text" id="setup-name" placeholder="Your first name"/>
+    <input type="text" id="setup-father" placeholder="Father's name"/>
+    <input type="text" id="setup-grandfather" placeholder="Grandfather's name"/>
+    <input type="email" id="setup-email" placeholder="Admin email"/>
+    <input type="password" id="setup-password" placeholder="Password"/>
+    <input type="text" id="setup-secret" placeholder="Admin secret (from .env)"/>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSetup()">Cancel</button>
+      <button class="btn-primary" onclick="doSetup()">Create Admin</button>
+    </div>
+    <div class="modal-msg" id="setup-msg"></div>
+  </div>
+</div>
+
+<!-- ══ APP ════════════════════════════════════════════════════ -->
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="taxi">🚕 Djib Taxi</div>
+      <div class="sub">ADMIN PANEL</div>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('drivers')">
+        <span class="icon">🚗</span> Drivers
+      </div>
+      <div class="nav-item" onclick="showPage('trips')">
+        <span class="icon">🗺️</span> Trips
+      </div>
+      <div class="nav-item" onclick="showPage('users')">
+        <span class="icon">👥</span> Users
+      </div>
+      <div class="nav-item" onclick="showPage('complaints')">
+        <span class="icon">🚩</span> Complaints
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="doLogout()">
+        <span>🚪</span> Logout
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Overview of Djib Taxi operations</p>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>⏳ Pending Driver Approvals</h3>
+          <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+        </div>
+        <div id="pending-preview"></div>
+      </div>
+    </div>
+
+    <!-- Drivers -->
+    <div class="page" id="page-drivers">
+      <div class="page-header">
+        <h2>Drivers</h2>
+        <p>Manage driver applications and accounts</p>
+      </div>
+      <div class="card">
+        <div class="tab-bar">
+          <button class="tab active" id="tab-pending" onclick="switchDriverTab('pending')">Pending</button>
+          <button class="tab" id="tab-all" onclick="switchDriverTab('all')">All Drivers</button>
+        </div>
+        <div id="drivers-table"></div>
+      </div>
+    </div>
+
+    <!-- Trips -->
+    <div class="page" id="page-trips">
+      <div class="page-header">
+        <h2>Trips</h2>
+        <p>All trip records</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>All Trips</h3>
+          <button class="refresh-btn" onclick="loadTrips()">↻ Refresh</button>
+        </div>
+        <div id="trips-table"></div>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="page" id="page-users">
+      <div class="page-header">
+        <h2>Users</h2>
+        <p>All registered users</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>All Users</h3>
+          <button class="refresh-btn" onclick="loadUsers()">↻ Refresh</button>
+        </div>
+        <div id="users-table"></div>
+      </div>
+    </div>
+
+    <!-- Complaints -->
+    <div class="page" id="page-complaints">
+      <div class="page-header">
+        <h2>Complaints</h2>
+        <p>Manage customer and driver complaints</p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Open Complaints</h3>
+          <button class="refresh-btn" onclick="loadComplaints()">↻ Refresh</button>
+        </div>
+        <div id="complaints-table"></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:3000/api';
+let token = localStorage.getItem('admin_token') || '';
+let currentDriverTab = 'pending';
+let allDrivers = [];
+
+// ── Helpers ───────────────────────────────────────────────────
+function fullName(u) {
+  return [u.name, u.father_name, u.grandfather_name]
+    .filter(Boolean).join(' ') || u.name || u.email || '—';
+}
+function badge(cls, text) {
+  return `<span class="badge badge-${cls}">${text}</span>`;
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('fr-DJ', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtMoney(v) {
+  if (v == null) return '—';
+  return parseFloat(v).toLocaleString() + ' DJF';
+}
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) }
+  });
+  return res.json();
+}
+
+// ── Auth ──────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw    = document.getElementById('login-password').value;
+  const err   = document.getElementById('login-error');
+  err.style.display = 'none';
+  try {
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pw })
+    });
+    const d = await r.json();
+    if (!d.token) { err.textContent = d.message || 'Login failed'; err.style.display='block'; return; }
+    if (d.user.role !== 'admin') { err.textContent = 'Access denied — admin accounts only'; err.style.display='block'; return; }
+    token = d.token;
+    localStorage.setItem('admin_token', token);
+    localStorage.setItem('admin_user', JSON.stringify(d.user));
+    enterApp();
+  } catch(e) { err.textContent = 'Cannot connect to server (localhost:3000)'; err.style.display='block'; }
+}
+function doLogout() {
+  token = '';
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_user');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  showPage('dashboard');
+}
+
+// ── Setup modal ───────────────────────────────────────────────
+function openSetup() { document.getElementById('setup-modal').classList.add('active'); }
+function closeSetup() { document.getElementById('setup-modal').classList.remove('active'); document.getElementById('setup-msg').textContent=''; }
+async function doSetup() {
+  const msg = document.getElementById('setup-msg');
+  const body = {
+    name:            document.getElementById('setup-name').value.trim(),
+    fatherName:      document.getElementById('setup-father').value.trim(),
+    grandfatherName: document.getElementById('setup-grandfather').value.trim(),
+    email:           document.getElementById('setup-email').value.trim(),
+    password:        document.getElementById('setup-password').value,
+    secret:          document.getElementById('setup-secret').value.trim(),
+  };
+  msg.style.color = '#888'; msg.textContent = 'Creating…';
+  try {
+    const r = await fetch(`${API}/admin/setup`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!d.token) { msg.style.color='#e74c3c'; msg.textContent = d.message; return; }
+    msg.style.color = '#27ae60'; msg.textContent = 'Admin created! You can now log in.';
+    document.getElementById('login-email').value = body.email;
+    setTimeout(closeSetup, 1800);
+  } catch(e) { msg.style.color='#e74c3c'; msg.textContent='Connection error'; }
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().includes(name)) n.classList.add('active');
+  });
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'drivers')   loadDrivers();
+  if (name === 'trips')     loadTrips();
+  if (name === 'users')     loadUsers();
+  if (name === 'complaints') loadComplaints();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function loadDashboard() {
+  document.getElementById('stats-grid').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  document.getElementById('pending-preview').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const [stats, pending] = await Promise.all([
+      api('/admin/stats'),
+      api('/admin/drivers/pending'),
+    ]);
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card"><div class="label">Total Users</div><div class="value">${stats.users?.total ?? 0}</div></div>
+      <div class="stat-card blue"><div class="label">Total Drivers</div><div class="value">${stats.drivers?.total ?? 0}</div><div class="sub">${stats.drivers?.approved ?? 0} approved</div></div>
+      <div class="stat-card yellow"><div class="label">Pending</div><div class="value">${stats.drivers?.pending ?? 0}</div><div class="sub">awaiting approval</div></div>
+      <div class="stat-card"><div class="label">Total Trips</div><div class="value">${stats.trips?.total ?? 0}</div></div>
+      <div class="stat-card green"><div class="label">Completed</div><div class="value">${stats.trips?.completed ?? 0}</div></div>
+      <div class="stat-card green"><div class="label">Revenue</div><div class="value" style="font-size:18px">${fmtMoney(stats.revenue?.total ?? 0)}</div></div>
+      <div class="stat-card red"><div class="label">Open Complaints</div><div class="value">${stats.complaints?.open ?? 0}</div></div>
+      <div class="stat-card"><div class="label">Reviews</div><div class="value">${stats.reviews?.total ?? 0}</div></div>
+    `;
+    renderPendingPreview(pending);
+  } catch(e) { document.getElementById('stats-grid').innerHTML = '<div class="empty">Failed to load stats</div>'; }
+}
+function renderPendingPreview(drivers) {
+  const el = document.getElementById('pending-preview');
+  if (!Array.isArray(drivers) || drivers.length === 0) { el.innerHTML = '<div class="empty">No pending approvals 🎉</div>'; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>Vehicle</th><th>Plate</th><th>License</th><th>Since</th><th>Action</th></tr></thead>
+    <tbody>${drivers.map(d => `
+      <tr>
+        <td><b>${fullName(d)}</b><br><small style="color:#888">${d.email}</small></td>
+        <td>${d.vehicle_model}</td>
+        <td>${d.vehicle_plate}</td>
+        <td>${d.license_number}</td>
+        <td>${fmtDate(d.created_at)}</td>
+        <td>
+          <button class="btn-approve" onclick="approveDriver('${d.id}')">Approve</button>
+          <button class="btn-reject"  onclick="rejectDriver('${d.id}')">Reject</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+// ── Drivers ───────────────────────────────────────────────────
+async function loadDrivers() {
+  document.getElementById('drivers-table').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    allDrivers = await api('/admin/drivers');
+    renderDriversTab(currentDriverTab);
+  } catch(e) { document.getElementById('drivers-table').innerHTML = '<div class="empty">Failed to load drivers</div>'; }
+}
+function switchDriverTab(tab) {
+  currentDriverTab = tab;
+  document.getElementById('tab-pending').classList.toggle('active', tab === 'pending');
+  document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+  renderDriversTab(tab);
+}
+function renderDriversTab(tab) {
+  const list = tab === 'pending'
+    ? allDrivers.filter(d => d.status === 'pending')
+    : allDrivers;
+  const el = document.getElementById('drivers-table');
+  if (!list.length) { el.innerHTML = `<div class="empty">${tab === 'pending' ? 'No pending approvals 🎉' : 'No drivers registered'}</div>`; return; }
+  el.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Plate</th><th>License</th><th>Status</th><th>Online</th><th>Since</th>${tab==='pending'?'<th>Action</th>':''}</tr></thead>
+    <tbody>${list.map(d => `
+      <tr>
+        <td><b>${fullName(d)}</b><br><small style="color:#888">${d.email}</small></td>
+        <td>${d.phone}</td>
+        <td>${d.vehicle_model}</td>
+        <td>${d.vehicle_plate}</td>
+        <td>${d.license_number}</td>
+        <td>${badge(d.status, d.status)}</td>
+        <td>${d.is_online ? '<span style="color:#27ae60;font-weight:700">● Online</span>' : '<span style="color:#aaa">○ Offline</span>'}</td>
+        <td>${fmtDate(d.created_at)}</td>
+        ${tab==='pending'?`<td>
+          <button class="btn-approve" onclick="approveDriver('${d.id}')">Approve</button>
+          <button class="btn-reject"  onclick="rejectDriver('${d.id}')">Reject</button>
+        </td>`:''}
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+async function approveDriver(id) {
+  try {
+    const r = await api(`/admin/drivers/${id}/approve`, { method:'PUT' });
+    toast(r.message || 'Driver approved');
+    loadDrivers(); loadDashboard();
+  } catch(e) { toast('Error approving driver', 'error'); }
+}
+async function rejectDriver(id) {
+  if (!confirm('Reject this driver application?')) return;
+  try {
+    const r = await api(`/admin/drivers/${id}/reject`, { method:'PUT' });
+    toast(r.message || 'Driver rejected');
+    loadDrivers(); loadDashboard();
+  } catch(e) { toast('Error rejecting driver', 'error'); }
+}
+
+// ── Trips ─────────────────────────────────────────────────────
+async function loadTrips() {
+  document.getElementById('trips-table').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const trips = await api('/admin/trips');
+    const el = document.getElementById('trips-table');
+    if (!trips.length) { el.innerHTML = '<div class="empty">No trips yet</div>'; return; }
+    el.innerHTML = `<table>
+      <thead><tr><th>#</th><th>Pickup</th><th>Dropoff</th><th>Status</th><th>Deposit</th><th>Fare</th><th>Date</th></tr></thead>
+      <tbody>${trips.map((t,i) => `
+        <tr>
+          <td style="color:#aaa;font-size:11px">${t.id.slice(0,8)}…</td>
+          <td>${t.pickup_location}</td>
+          <td>${t.dropoff_location}</td>
+          <td>${badge(t.status, t.status.replace('_',' '))}</td>
+          <td>${fmtMoney(t.deposit)}</td>
+          <td>${t.fare ? fmtMoney(t.fare) : '<span style="color:#aaa">—</span>'}</td>
+          <td>${fmtDate(t.created_at)}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { document.getElementById('trips-table').innerHTML = '<div class="empty">Failed to load trips</div>'; }
+}
+
+// ── Users ─────────────────────────────────────────────────────
+async function loadUsers() {
+  document.getElementById('users-table').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const users = await api('/admin/users');
+    const el = document.getElementById('users-table');
+    if (!users.length) { el.innerHTML = '<div class="empty">No users</div>'; return; }
+    el.innerHTML = `<table>
+      <thead><tr><th>Full Name</th><th>Email</th><th>Role</th><th>Registered</th></tr></thead>
+      <tbody>${users.map(u => `
+        <tr>
+          <td><b>${fullName(u)}</b></td>
+          <td>${u.email}</td>
+          <td>${badge(u.role, u.role)}</td>
+          <td>${fmtDate(u.created_at)}</td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { document.getElementById('users-table').innerHTML = '<div class="empty">Failed to load users</div>'; }
+}
+
+// ── Complaints ────────────────────────────────────────────────
+async function loadComplaints() {
+  document.getElementById('complaints-table').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const data = await api('/admin/complaints');
+    const complaints = data.complaints || data;
+    const el = document.getElementById('complaints-table');
+    if (!complaints.length) { el.innerHTML = '<div class="empty">No open complaints 🎉</div>'; return; }
+    el.innerHTML = `<table>
+      <thead><tr><th>Trip</th><th>Reason</th><th>Description</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>${complaints.map(c => `
+        <tr>
+          <td style="color:#aaa;font-size:11px">${c.trip_id?.slice(0,8) ?? '—'}…</td>
+          <td><b>${c.reason}</b></td>
+          <td style="max-width:200px">${c.description || '—'}</td>
+          <td>${badge(c.status, c.status)}</td>
+          <td>${fmtDate(c.created_at)}</td>
+          <td>
+            <select class="status-select" id="cstatus-${c.id}">
+              <option value="open" ${c.status==='open'?'selected':''}>Open</option>
+              <option value="investigating" ${c.status==='investigating'?'selected':''}>Investigating</option>
+              <option value="resolved" ${c.status==='resolved'?'selected':''}>Resolved</option>
+              <option value="dismissed" ${c.status==='dismissed'?'selected':''}>Dismissed</option>
+            </select>
+            <button class="btn-sm btn-primary" style="background:#FFB800;color:#1a1a2e;margin-left:6px" onclick="updateComplaint('${c.id}')">Update</button>
+          </td>
+        </tr>`).join('')}
+      </tbody></table>`;
+  } catch(e) { document.getElementById('complaints-table').innerHTML = '<div class="empty">Failed to load complaints</div>'; }
+}
+async function updateComplaint(id) {
+  const status = document.getElementById(`cstatus-${id}`).value;
+  try {
+    const r = await api(`/admin/complaints/${id}/status`, { method:'PUT', body: JSON.stringify({ status }) });
+    toast(r.message || 'Complaint updated');
+    loadComplaints();
+  } catch(e) { toast('Error updating complaint', 'error'); }
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (document.getElementById('setup-modal').classList.contains('active')) doSetup();
+    else if (document.getElementById('login-screen').style.display !== 'none') doLogin();
+  }
+});
+(async function boot() {
+  if (!token) return;
+  try {
+    const r = await api('/admin/stats');
+    if (r.users !== undefined) { enterApp(); return; }
+  } catch(e) {}
+  token = ''; localStorage.removeItem('admin_token');
+})();
+</script>
+</body>
+</html>

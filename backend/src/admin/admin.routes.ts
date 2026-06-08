@@ -8,20 +8,25 @@ import {
   rejectDriverAdmin,
   getAllTripsAdmin,
   getAllComplaintsAdmin,
-  resolveComplaintAdmin
+  resolveComplaintAdmin,
+  setupAdmin,
 } from './admin.controller';
-import { protect } from '../auth/auth.middleware';
+import { protect, requireRole } from '../auth/auth.middleware';
 
 const router = Router();
 
-router.get('/stats', protect, getDashboardStats);
-router.get('/users', protect, getAllUsersAdmin);
-router.get('/drivers', protect, getAllDriversAdmin);
-router.get('/drivers/pending', protect, getPending);
-router.put('/drivers/:id/approve', protect, approveDriverAdmin);
-router.put('/drivers/:id/reject', protect, rejectDriverAdmin);
-router.get('/trips', protect, getAllTripsAdmin);
-router.get('/complaints', protect, getAllComplaintsAdmin);
-router.put('/complaints/:id/status', protect, resolveComplaintAdmin);
+// One-time setup — no auth required (protected by ADMIN_SECRET in body)
+router.post('/setup', setupAdmin);
+
+// All other admin routes require a valid admin JWT
+router.get('/stats', protect, requireRole('admin'), getDashboardStats);
+router.get('/users', protect, requireRole('admin'), getAllUsersAdmin);
+router.get('/drivers', protect, requireRole('admin'), getAllDriversAdmin);
+router.get('/drivers/pending', protect, requireRole('admin'), getPending);
+router.put('/drivers/:id/approve', protect, requireRole('admin'), approveDriverAdmin);
+router.put('/drivers/:id/reject', protect, requireRole('admin'), rejectDriverAdmin);
+router.get('/trips', protect, requireRole('admin'), getAllTripsAdmin);
+router.get('/complaints', protect, requireRole('admin'), getAllComplaintsAdmin);
+router.put('/complaints/:id/status', protect, requireRole('admin'), resolveComplaintAdmin);
 
 export default router;
