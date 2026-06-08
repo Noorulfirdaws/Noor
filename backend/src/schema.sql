@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS drivers (
 CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   customer_id UUID REFERENCES users(id),
-  driver_id UUID REFERENCES drivers(id),
+  driver_id UUID REFERENCES users(id),
   pickup_location VARCHAR(255) NOT NULL,
   dropoff_location VARCHAR(255) NOT NULL,
   status VARCHAR(30) DEFAULT 'requested',
