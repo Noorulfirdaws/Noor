@@ -37,6 +37,13 @@ class _HomeScreenState extends State<HomeScreen> {
         Timer.periodic(const Duration(seconds: 15), (_) => _loadData());
   }
 
+  String _fullName(Map<String, dynamic>? user) {
+    if (user == null) return 'Driver';
+    return [user['name'], user['father_name'], user['grandfather_name']]
+        .where((p) => p != null && p.toString().isNotEmpty)
+        .join(' ');
+  }
+
   Future<void> _loadData() async {
     if (!mounted || _isLoading) return;
     final profile = context.read<AuthProvider>().driverProfile;
@@ -197,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(auth.user?['name'] ?? 'Driver',
+                  Text(_fullName(auth.user),
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   if (profile != null) ...[

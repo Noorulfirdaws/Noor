@@ -12,6 +12,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
+  final _fatherNameController = TextEditingController();
+  final _grandfatherNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -22,6 +24,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _fatherNameController.dispose();
+    _grandfatherNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
@@ -33,6 +37,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _doRegister(AuthProvider auth) async {
     final name = _nameController.text.trim();
+    final fatherName = _fatherNameController.text.trim();
+    final grandfatherName = _grandfatherNameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final phone = _phoneController.text.trim();
@@ -40,15 +46,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final vehicleModel = _vehicleModelController.text.trim();
     final vehiclePlate = _vehiclePlateController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty ||
-        phone.isEmpty || license.isEmpty || vehicleModel.isEmpty ||
-        vehiclePlate.isEmpty) {
+    if (name.isEmpty || fatherName.isEmpty || grandfatherName.isEmpty ||
+        email.isEmpty || password.isEmpty || phone.isEmpty ||
+        license.isEmpty || vehicleModel.isEmpty || vehiclePlate.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please fill all fields')));
       return;
     }
 
-    final accountOk = await auth.register(name, email, password);
+    final accountOk = await auth.register(
+        name, fatherName, grandfatherName, email, password);
     if (!accountOk || !mounted) return;
 
     final profileOk = await auth.registerDriverProfile(
@@ -75,9 +82,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _sectionLabel('Account Info'),
+            _sectionLabel('Personal Info'),
             const SizedBox(height: 12),
-            _field(_nameController, 'Full Name', Icons.person),
+            _field(_nameController, 'Your Name (First)', Icons.person),
+            const SizedBox(height: 12),
+            _field(_fatherNameController, "Father's Name",
+                Icons.person_outline),
+            const SizedBox(height: 12),
+            _field(_grandfatherNameController, "Grandfather's Name",
+                Icons.people_outline),
             const SizedBox(height: 12),
             _field(_emailController, 'Email', Icons.email,
                 keyboard: TextInputType.emailAddress),
@@ -97,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 12),
             _field(_vehiclePlateController, 'Vehicle Plate',
                 Icons.confirmation_number),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Consumer<AuthProvider>(builder: (context, auth, _) {
               if (auth.error != null) {
                 return Padding(
@@ -123,8 +136,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: auth.isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text('Register as Driver',
-                          style:
-                              TextStyle(fontSize: 18, color: Colors.white)),
+                          style: TextStyle(
+                              fontSize: 18, color: Colors.white)),
                 ),
               );
             }),
@@ -157,12 +170,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _field(TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboard = TextInputType.text,
-      bool obscure = false}) {
+      {TextInputType keyboard = TextInputType.text, bool obscure = false}) {
     return TextField(
       controller: controller,
       keyboardType: keyboard,
       obscureText: obscure,
+      textInputAction: TextInputAction.next,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

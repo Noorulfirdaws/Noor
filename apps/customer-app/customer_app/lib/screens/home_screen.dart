@@ -32,6 +32,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  String _fullName(Map<String, dynamic>? user) {
+    if (user == null) return 'Customer';
+    return [user['name'], user['father_name'], user['grandfather_name']]
+        .where((p) => p != null && p.toString().isNotEmpty)
+        .join(' ');
+  }
+
   Color _getStatusColor(String? status) {
     switch (status) {
       case 'requested': return Colors.orange;
@@ -70,7 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello, ${auth.user?['name'] ?? 'Customer'}!', style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                Text('Hello, ${_fullName(auth.user)}!', style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
                 const Text('Where are you going today?', style: TextStyle(color: Colors.white70)),
               ],
             ),
