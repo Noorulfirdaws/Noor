@@ -7,7 +7,6 @@ import 'request_trip_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -15,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _trips = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,21 +23,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadTrips() async {
+    setState(() { _isLoading = true; _error = null; });
     try {
       final trips = await ApiService.getMyTrips();
-      setState(() {
-        _trips = trips;
-        _isLoading = false;
-      });
+      setState(() { _trips = trips; _isLoading = false; });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() { _isLoading = false; _error = 'Failed to load trips. Tap to retry.'; });
+    }
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status) {
+      case 'requested': return Colors.orange;
+      case 'accepted': return Colors.blue;
+      case 'in_progress': return Colors.green;
+      case 'completed': return Colors.grey;
+      case 'cancelled': return Colors.red;
+      default: return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -48,12 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               await auth.logout();
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              }
+              if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
             },
           ),
         ],
@@ -67,10 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Hello, ${auth.user?['name'] ?? 'Customer'}! 👋',
-                  style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                ),
+                Text('Hello, ${auth.user?['name'] ?? 'Customer'}!', style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
                 const Text('Where are you going today?', style: TextStyle(color: Colors.white70)),
               ],
             ),
@@ -80,34 +80,21 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SizedBox(
               width: double.infinity,
               height: 55,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.local_taxi, color: Color(0xFFFFB800)),
-                label: const Text('Request a Taxi', style: TextStyle(fontSize: 18, color: Colors.white)),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RequestTripScreen()),
-                  ).then((_) => _loadTrips());
-                },
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestTripScreen())).then((_) => _loadTrips()),
+                child: const Text('Request a Taxi', style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('My Trips', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-          ),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Align(alignment: Alignment.centerLeft, child: Text('My Trips', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFB800)))
-                : _trips.isEmpty
-                    ? const Center(child: Text('No trips yet. Request your first ride!'))
+                : _error != null
+                    ? Center(child: GestureDetector(onTap: _loadTrips, child: Text(_error!, style: const TextStyle(color: Colors.red))))
+                    : _trips.isEmpty
+                    ? const Center(child: Text('No trips yet!'))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _trips.length,
@@ -115,21 +102,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           final trip = _trips[index];
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: ListTile(
-                              leading: const Icon(Icons.local_taxi, color: Color(0xFFFFB800), size: 40),
-                              title: Text(trip['pickup_location'] ?? trip['pickupLocation'] ?? ''),
-                              subtitle: Text(trip['dropoff_location'] ?? trip['dropoffLocation'] ?? ''),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(trip['status']),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  trip['status'] ?? '',
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
-                                ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(trip['pickup_location'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(trip['dropoff_location'] ?? ''),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: _getStatusColor(trip['status']), borderRadius: BorderRadius.circular(8)),
+                                        child: Text(trip['status'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                      ),
+                                      if (trip['status'] == 'requested')
+                                        TextButton(
+                                          onPressed: () async {
+                                            await ApiService.cancelTrip(trip['id'].toString());
+                                            if (mounted) _loadTrips();
+                                          },
+                                          child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+                                        ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -139,17 +137,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'requested': return Colors.orange;
-      case 'accepted': return Colors.blue;
-      case 'driver_arrived': return Colors.purple;
-      case 'in_progress': return Colors.green;
-      case 'completed': return Colors.grey;
-      case 'cancelled': return Colors.red;
-      default: return Colors.grey;
-    }
   }
 }

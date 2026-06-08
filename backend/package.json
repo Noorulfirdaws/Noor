@@ -7,11 +7,19 @@
     "test": "test"
   },
   "scripts": {
- "start": "node --require ts-node/register/transpile-only src/index.ts",
-  "dev": "nodemon --exec ts-node --transpile-only src/index.ts",
-  "build": "tsc",
-  "test": "echo \"Error: no test specified\" && exit 1"
-},
+    "start": "node --require ts-node/register/transpile-only src/index.ts",
+    "dev": "nodemon --exec ts-node --transpile-only src/index.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.21.0"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",

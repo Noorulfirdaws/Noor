@@ -67,10 +67,16 @@ export const rejectDriver = async (id: string) => {
 export const toggleDriverOnline = async (id: string) => {
   const driver = await getDriverById(id);
   if (driver.status !== 'approved') throw new Error('Driver not approved yet');
-  
+
   const result = await pool.query(
     'UPDATE drivers SET is_online = $1 WHERE id = $2 RETURNING *',
     [!driver.is_online, id]
   );
+  return result.rows[0];
+};
+
+export const getDriverByUserId = async (userId: string) => {
+  const result = await pool.query('SELECT * FROM drivers WHERE user_id = $1', [userId]);
+  if (result.rows.length === 0) return null;
   return result.rows[0];
 };

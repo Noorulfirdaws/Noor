@@ -1,193 +1,186 @@
-import { v4 as uuidv4 } from 'uuid';
+import pool from '../database';
 
-export type TripStatus =
-  'requested' | 'accepted' | 'driver_arrived' | 'waiting' |
-  'in_progress' | 'completed' | 'cancelled' |
+export type TripStatus = 
+  'requested' | 'accepted' | 'driver_arrived' | 'waiting' | 
+  'in_progress' | 'completed' | 'cancelled' | 
   'customer_no_show' | 'driver_no_show';
 
-export interface Trip {
-  id: string;
-  customerId: string;
-  driverId?: string;
-  pickupLocation: string;
-  dropoffLocation: string;
-  status: TripStatus;
-  fare?: number;
-  deposit: number;
-  waitingFee: number;
-  arrivedAt?: Date;
-  waitingMinutes: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const DEPOSIT_AMOUNT = 200;
+const FREE_WAITING_MINUTES = 5;
+const WAITING_FEE_PER_MINUTE = 50;
 
-export const trips: Trip[] = [];
-
-const DEPOSIT_AMOUNT = 200; // 200 DJF booking deposit
-const FREE_WAITING_MINUTES = 5; // 5 minutes free waiting
-const WAITING_FEE_PER_MINUTE = 50; // 50 DJF per minute after free period
-
-export const requestTrip = (customerId: string, pickupLocation: string, dropoffLocation: string) => {
-  const trip: Trip = {
-    id: uuidv4(),
-    customerId,
-    pickupLocation,
-    dropoffLocation,
-    status: 'requested',
-    deposit: DEPOSIT_AMOUNT,
-    waitingFee: 0,
-    waitingMinutes: 0,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-  trips.push(trip);
-  return trip;
+export const requestTrip = async (customerId: string, pickupLocation: string, dropoffLocation: string) => {
+  const result = await pool.query(
+    `INSERT INTO trips (customer_id, pickup_location, dropoff_location, status, deposit, waiting_fee, waiting_minutes)
+     VALUES ($1, $2, $3, 'requested', $4, 0, 0) RETURNING *`,
+    [customerId, pickupLocation, dropoffLocation, DEPOSIT_AMOUNT]
+  );
+  return result.rows[0];
 };
 
-export const acceptTrip = (tripId: string, driverId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.status !== 'requested') throw new Error('Trip is no longer available');
-  trip.driverId = driverId;
-  trip.status = 'accepted';
-  trip.updatedAt = new Date();
-  return trip;
+export const acceptTrip = async (tripId: string, driverId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].status !== 'requested') throw new Error('Trip is no longer available');
+
+  const result = await pool.query(
+    'UPDATE trips SET driver_id = $1, status = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+    [driverId, 'accepted', tripId]
+  );
+  return result.rows[0];
 };
 
-export const driverArrived = (tripId: string, driverId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.driverId !== driverId) throw new Error('Not authorized');
-  if (trip.status !== 'accepted') throw new Error('Trip not accepted');
-  trip.status = 'driver_arrived';
-  trip.arrivedAt = new Date();
-  trip.updatedAt = new Date();
+export const driverArrived = async (tripId: string, driverId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].driver_id !== driverId) throw new Error('Not authorized');
+  if (trip.rows[0].status !== 'accepted') throw new Error('Trip not accepted');
+
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, arrived_at = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *',
+    ['driver_arrived', tripId]
+  );
   return {
-    trip,
+    trip: result.rows[0],
     message: `Driver arrived! Customer has ${FREE_WAITING_MINUTES} minutes free waiting time.`
   };
 };
 
-export const calculateWaitingFee = (arrivedAt: Date) => {
-  const now = new Date();
-  const minutesWaited = Math.floor((now.getTime() - arrivedAt.getTime()) / 60000);
-  const chargeableMinutes = Math.max(0, minutesWaited - FREE_WAITING_MINUTES);
-  const fee = chargeableMinutes * WAITING_FEE_PER_MINUTE;
-  return { minutesWaited, chargeableMinutes, fee };
-};
+export const startTrip = async (tripId: string, driverId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].driver_id !== driverId) throw new Error('Not authorized');
+  if (trip.rows[0].status !== 'driver_arrived') throw new Error('Driver must mark arrival first');
 
-export const startTrip = (tripId: string, driverId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.driverId !== driverId) throw new Error('Not authorized');
-  if (trip.status !== 'driver_arrived') throw new Error('Driver must mark arrival first');
-  
   let waitingFee = 0;
   let waitingMinutes = 0;
-  
-  if (trip.arrivedAt) {
-    const waiting = calculateWaitingFee(trip.arrivedAt);
-    waitingFee = waiting.fee;
-    waitingMinutes = waiting.minutesWaited;
+
+  if (trip.rows[0].arrived_at) {
+    const arrivedAt = new Date(trip.rows[0].arrived_at);
+    const now = new Date();
+    waitingMinutes = Math.floor((now.getTime() - arrivedAt.getTime()) / 60000);
+    const chargeableMinutes = Math.max(0, waitingMinutes - FREE_WAITING_MINUTES);
+    waitingFee = chargeableMinutes * WAITING_FEE_PER_MINUTE;
   }
 
-  trip.status = 'in_progress';
-  trip.waitingFee = waitingFee;
-  trip.waitingMinutes = waitingMinutes;
-  trip.updatedAt = new Date();
-  return { trip, waitingFee, waitingMinutes };
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, waiting_fee = $2, waiting_minutes = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+    ['in_progress', waitingFee, waitingMinutes, tripId]
+  );
+  return { trip: result.rows[0], waitingFee, waitingMinutes };
 };
 
-export const completeTrip = (tripId: string, driverId: string, baseFare: number) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.driverId !== driverId) throw new Error('Not authorized');
-  if (trip.status !== 'in_progress') throw new Error('Trip not in progress');
-  
-  const totalFare = baseFare + trip.waitingFee;
-  const remainingAmount = Math.max(0, totalFare - trip.deposit);
-  
-  trip.status = 'completed';
-  trip.fare = totalFare;
-  trip.updatedAt = new Date();
-  
+export const completeTrip = async (tripId: string, driverId: string, baseFare: number) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].driver_id !== driverId) throw new Error('Not authorized');
+  if (trip.rows[0].status !== 'in_progress') throw new Error('Trip not in progress');
+
+  const waitingFee = parseFloat(trip.rows[0].waiting_fee) || 0;
+  const deposit = parseFloat(trip.rows[0].deposit) || 0;
+  const totalFare = baseFare + waitingFee;
+  const remainingAmount = Math.max(0, totalFare - deposit);
+
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, fare = $2, updated_at = NOW() WHERE id = $3 RETURNING *',
+    ['completed', totalFare, tripId]
+  );
+
   return {
-    trip,
+    trip: result.rows[0],
     summary: {
       baseFare,
-      waitingFee: trip.waitingFee,
-      waitingMinutes: trip.waitingMinutes,
-      deposit: trip.deposit,
+      waitingFee,
+      deposit,
       totalFare,
       remainingAmount,
-      message: `Customer pays ${remainingAmount} DJF on arrival (deposit of ${trip.deposit} DJF already paid)`
+      message: `Customer pays ${remainingAmount} DJF on arrival`
     }
   };
 };
 
-export const customerNoShow = (tripId: string, driverId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.driverId !== driverId) throw new Error('Not authorized');
-  if (trip.status !== 'driver_arrived') throw new Error('Driver must have arrived first');
-  
-  if (trip.arrivedAt) {
-    const minutesWaited = Math.floor((new Date().getTime() - trip.arrivedAt.getTime()) / 60000);
+export const customerNoShow = async (tripId: string, driverId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].driver_id !== driverId) throw new Error('Not authorized');
+  if (trip.rows[0].status !== 'driver_arrived') throw new Error('Driver must have arrived first');
+
+  if (trip.rows[0].arrived_at) {
+    const minutesWaited = Math.floor((new Date().getTime() - new Date(trip.rows[0].arrived_at).getTime()) / 60000);
     if (minutesWaited < FREE_WAITING_MINUTES) {
       throw new Error(`Please wait ${FREE_WAITING_MINUTES - minutesWaited} more minutes before marking no-show`);
     }
   }
 
-  trip.status = 'customer_no_show';
-  trip.updatedAt = new Date();
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    ['customer_no_show', tripId]
+  );
   return {
-    trip,
-    message: `Customer no-show confirmed. Deposit of ${trip.deposit} DJF transferred to driver as compensation.`
+    trip: result.rows[0],
+    message: `Customer no-show confirmed. Deposit of ${DEPOSIT_AMOUNT} DJF transferred to driver.`
   };
 };
 
-export const driverNoShow = (tripId: string, customerId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.customerId !== customerId) throw new Error('Not authorized');
-  if (!['accepted', 'requested'].includes(trip.status)) throw new Error('Cannot report no-show at this stage');
-  
-  const minutesSinceRequest = Math.floor((new Date().getTime() - trip.createdAt.getTime()) / 60000);
+export const driverNoShow = async (tripId: string, customerId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].customer_id !== customerId) throw new Error('Not authorized');
+
+  const minutesSinceRequest = Math.floor((new Date().getTime() - new Date(trip.rows[0].created_at).getTime()) / 60000);
   if (minutesSinceRequest < 10) {
-    throw new Error(`Please wait 10 minutes before reporting driver no-show. ${10 - minutesSinceRequest} minutes remaining.`);
+    throw new Error(`Please wait 10 minutes before reporting no-show. ${10 - minutesSinceRequest} minutes remaining.`);
   }
 
-  trip.status = 'driver_no_show';
-  trip.updatedAt = new Date();
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    ['driver_no_show', tripId]
+  );
   return {
-    trip,
-    message: `Driver no-show confirmed. Your deposit of ${trip.deposit} DJF will be fully refunded.`
+    trip: result.rows[0],
+    message: `Driver no-show confirmed. Deposit of ${DEPOSIT_AMOUNT} DJF will be refunded.`
   };
 };
 
-export const cancelTrip = (tripId: string, userId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  if (trip.customerId !== userId && trip.driverId !== userId) throw new Error('Not authorized');
-  const done = trip.status === 'completed' || trip.status === 'cancelled';
+export const cancelTrip = async (tripId: string, userId: string) => {
+  const trip = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (trip.rows.length === 0) throw new Error('Trip not found');
+  if (trip.rows[0].customer_id !== userId && trip.rows[0].driver_id !== userId) throw new Error('Not authorized');
+  
+  const done = trip.rows[0].status === 'completed' || trip.rows[0].status === 'cancelled';
   if (done) throw new Error('Cannot cancel this trip');
-  trip.status = 'cancelled';
-  trip.updatedAt = new Date();
-  return trip;
+
+  const result = await pool.query(
+    'UPDATE trips SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+    ['cancelled', tripId]
+  );
+  return result.rows[0];
 };
 
-export const getTrips = () => trips;
-
-export const getTripById = (tripId: string) => {
-  const trip = trips.find(t => t.id === tripId);
-  if (!trip) throw new Error('Trip not found');
-  return trip;
+export const getTrips = async () => {
+  const result = await pool.query('SELECT * FROM trips ORDER BY created_at DESC');
+  return result.rows;
 };
 
-export const getTripsByCustomer = (customerId: string) => {
-  return trips.filter(t => t.customerId === customerId);
+export const getTripById = async (tripId: string) => {
+  const result = await pool.query('SELECT * FROM trips WHERE id = $1', [tripId]);
+  if (result.rows.length === 0) throw new Error('Trip not found');
+  return result.rows[0];
 };
 
-export const getTripsByDriver = (driverId: string) => {
-  return trips.filter(t => t.driverId === driverId);
+export const getTripsByCustomer = async (customerId: string) => {
+  const result = await pool.query(
+    'SELECT * FROM trips WHERE customer_id = $1 ORDER BY created_at DESC',
+    [customerId]
+  );
+  return result.rows;
 };
+
+export const getTripsByDriver = async (driverId: string) => {
+  const result = await pool.query(
+    'SELECT * FROM trips WHERE driver_id = $1 ORDER BY created_at DESC',
+    [driverId]
+  );
+  return result.rows;
+};
+

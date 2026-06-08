@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
- static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'http://localhost:3000/api';
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -49,8 +49,7 @@ class ApiService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode(
-          {'pickupLocation': pickup, 'dropoffLocation': dropoff}),
+      body: jsonEncode({'pickupLocation': pickup, 'dropoffLocation': dropoff}),
     );
     return jsonDecode(response.body);
   }
@@ -59,6 +58,17 @@ class ApiService {
     final token = await getToken();
     final response = await http.get(
       Uri.parse('$baseUrl/trips/my'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    final data = jsonDecode(response.body);
+    if (data is List) return data;
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> cancelTrip(String tripId) async {
+    final token = await getToken();
+    final response = await http.put(
+      Uri.parse('$baseUrl/trips/$tripId/cancel'),
       headers: {'Authorization': 'Bearer $token'},
     );
     return jsonDecode(response.body);

@@ -24,14 +24,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _doLogin(AuthProvider auth) async {
     final success = await auth.login(
-      _emailController.text,
+      _emailController.text.trim(),
       _passwordController.text,
     );
     if (success && mounted) {
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+          context, MaterialPageRoute(builder: (_) => const HomeScreen()));
     }
   }
 
@@ -46,10 +44,13 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 40),
-              const Icon(Icons.local_taxi, size: 60, color: Color(0xFFFFB800)),
+              const Icon(Icons.drive_eta, size: 60, color: Color(0xFFFFB800)),
               const SizedBox(height: 20),
-              const Text('Welcome back!', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-              const Text('Login to Djib Taxi', style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const Text('Driver Login',
+                  style: TextStyle(
+                      fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text('Djib Taxi Driver App',
+                  style: TextStyle(fontSize: 16, color: Colors.grey)),
               const SizedBox(height: 40),
               TextField(
                 controller: _emailController,
@@ -58,7 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   prefixIcon: const Icon(Icons.email),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -66,11 +68,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _passwordController,
                 obscureText: true,
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _doLogin(context.read<AuthProvider>()),
+                onSubmitted: (_) =>
+                    _doLogin(context.read<AuthProvider>()),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -79,7 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (auth.error != null) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(auth.error!, style: const TextStyle(color: Colors.red)),
+                      child: Text(auth.error!,
+                          style: const TextStyle(color: Colors.red)),
                     );
                   }
                   return const SizedBox.shrink();
@@ -93,12 +98,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFB800),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: auth.isLoading ? null : () => _doLogin(auth),
+                      onPressed:
+                          auth.isLoading ? null : () => _doLogin(auth),
                       child: auth.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Login', style: TextStyle(fontSize: 18, color: Colors.white)),
+                          ? const CircularProgressIndicator(
+                              color: Colors.white)
+                          : const Text('Login',
+                              style: TextStyle(
+                                  fontSize: 18, color: Colors.white)),
                     ),
                   );
                 },
@@ -106,10 +116,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               Center(
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-                  },
-                  child: const Text("Don't have an account? Register"),
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterScreen())),
+                  child: const Text("New driver? Register here"),
                 ),
               ),
             ],

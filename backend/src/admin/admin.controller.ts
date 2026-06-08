@@ -3,7 +3,7 @@ import { AuthRequest } from '../auth/auth.middleware';
 import { getStats, getPendingDrivers, getOpenComplaints } from './admin.service';
 import { getAllUsers } from '../auth/auth.service';
 import { getAllDrivers, approveDriver, rejectDriver } from '../drivers/drivers.service';
-import { trips } from '../trips/trips.service';
+import { getTrips } from '../trips/trips.service';
 import { updateComplaintStatus, getAllComplaints } from '../complaints/complaints.service';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
@@ -64,7 +64,8 @@ export const rejectDriverAdmin = async (req: AuthRequest, res: Response) => {
 
 export const getAllTripsAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    return res.status(200).json(trips);
+    const allTrips = await getTrips();
+    return res.status(200).json(allTrips);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }

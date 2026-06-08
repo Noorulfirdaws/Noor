@@ -4,10 +4,12 @@ import {
   registerDriver,
   getAllDrivers,
   getDriverById,
+  getDriverByUserId,
   approveDriver,
   rejectDriver,
   toggleDriverOnline
 } from './drivers.service';
+import { getUserById } from '../auth/auth.service';
 
 export const register = async (req: AuthRequest, res: Response) => {
   try {
@@ -15,9 +17,10 @@ export const register = async (req: AuthRequest, res: Response) => {
     if (!phone || !licenseNumber || !vehicleModel || !vehiclePlate) {
       return res.status(400).json({ message: 'All fields are required' });
     }
+    const user = await getUserById(req.user!.id);
     const driver = await registerDriver({
       userId: req.user!.id,
-      name: req.user!.email,
+      name: user.name,
       email: req.user!.email,
       phone,
       licenseNumber,
@@ -25,6 +28,18 @@ export const register = async (req: AuthRequest, res: Response) => {
       vehiclePlate
     });
     return res.status(201).json({ message: 'Driver registered, pending approval', driver });
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const getMe = async (req: AuthRequest, res: Response) => {
+  try {
+    const driver = await getDriverByUserId(req.user!.id);
+    if (!driver) {
+      return res.status(404).json({ message: 'Driver profile not found' });
+    }
+    return res.status(200).json(driver);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }

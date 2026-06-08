@@ -14,6 +14,13 @@ class _RequestTripScreenState extends State<RequestTripScreen> {
   bool _isLoading = false;
   String? _message;
 
+  @override
+  void dispose() {
+    _pickupController.dispose();
+    _dropoffController.dispose();
+    super.dispose();
+  }
+
   Future<void> _requestTrip() async {
     if (_pickupController.text.isEmpty || _dropoffController.text.isEmpty) {
       setState(() => _message = 'Please enter pickup and dropoff locations');
