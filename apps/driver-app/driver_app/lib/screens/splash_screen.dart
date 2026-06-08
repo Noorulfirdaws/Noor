@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -20,6 +21,9 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+    // Request location + notification permissions early
+    await Geolocator.requestPermission();
     if (!mounted) return;
     final loggedIn =
         await context.read<AuthProvider>().tryAutoLogin();

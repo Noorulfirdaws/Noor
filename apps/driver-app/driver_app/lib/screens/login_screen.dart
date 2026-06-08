@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -113,12 +114,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const RegisterScreen())),
+                      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen())),
+                  child: const Text('Forgot password?',
+                      style: TextStyle(color: Colors.grey)),
+                ),
+              ),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen())),
                   child: const Text("New driver? Register here"),
                 ),
               ),

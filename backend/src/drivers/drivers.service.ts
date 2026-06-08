@@ -80,6 +80,14 @@ export const toggleDriverOnline = async (id: string) => {
   return result.rows[0];
 };
 
+export const updateDriverLocation = async (userId: string, latitude: number, longitude: number) => {
+  const result = await pool.query(
+    'UPDATE drivers SET latitude = $1, longitude = $2 WHERE user_id = $3 RETURNING id',
+    [latitude, longitude, userId]
+  );
+  if (result.rows.length === 0) throw new Error('Driver not found');
+};
+
 export const getDriverByUserId = async (userId: string) => {
   const result = await pool.query('SELECT * FROM drivers WHERE user_id = $1', [userId]);
   if (result.rows.length === 0) return null;

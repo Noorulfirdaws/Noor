@@ -168,6 +168,37 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // ── Location ─────────────────────────────────────────────────────────────
+
+  static Future<void> updateLocation(double latitude, double longitude) async {
+    await http.put(
+      Uri.parse('$baseUrl/drivers/me/location'),
+      headers: await _headers(),
+      body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
+    );
+  }
+
+  // ── Password reset ────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> resetPassword(
+      String email, String code, String newPassword) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'code': code, 'newPassword': newPassword}),
+    );
+    return jsonDecode(response.body);
+  }
+
   // ── Driver stats ──────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> getMyStats() async {

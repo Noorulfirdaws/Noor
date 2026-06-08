@@ -6,6 +6,7 @@ import {
   getDriverById,
   getDriverByUserId,
   getDriverStats,
+  updateDriverLocation,
   approveDriver,
   rejectDriver,
   toggleDriverOnline
@@ -50,6 +51,19 @@ export const getMyStats = async (req: AuthRequest, res: Response) => {
   try {
     const stats = await getDriverStats(req.user!.id);
     return res.status(200).json(stats);
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const updateLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ message: 'latitude and longitude are required' });
+    }
+    await updateDriverLocation(req.user!.id, parseFloat(latitude), parseFloat(longitude));
+    return res.status(200).json({ message: 'Location updated' });
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }

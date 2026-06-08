@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'active_trip_screen.dart';
 import 'profile_screen.dart';
+import 'map_screen.dart';
+import '../services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _activeTrip;
   bool _isLoading = false;
   Timer? _refreshTimer;
+  Timer? _locationTimer;
   int _prevAvailableCount = 0;
 
   @override
@@ -31,12 +35,26 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _locationTimer?.cancel();
     super.dispose();
   }
 
   void _startPolling() {
-    _refreshTimer =
-        Timer.periodic(const Duration(seconds: 15), (_) => _loadData());
+    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadData());
+    _locationTimer = Timer.periodic(const Duration(seconds: 30), (_) => _sendLocation());
+  }
+
+  Future<void> _sendLocation() async {
+    final profile = context.read<AuthProvider>().driverProfile;
+    if (profile == null || profile['is_online'] != true) return;
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) return;
+      final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      await ApiService.updateLocation(pos.latitude, pos.longitude);
+    } catch (_) {}
   }
 
   String _fullName(Map<String, dynamic>? user) {
@@ -65,14 +83,19 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       if (!mounted) return;
-      // In-app alert when new trip requests appear
+      // Alert when new trip requests appear
       if (available.length > _prevAvailableCount && _prevAvailableCount >= 0) {
         final newCount = available.length - _prevAvailableCount;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$newCount new trip request${newCount > 1 ? 's' : ''}! 🚕'),
-          backgroundColor: const Color(0xFFFFB800),
-          duration: const Duration(seconds: 4),
-        ));
+        // In-app snackbar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('$newCount new trip request${newCount > 1 ? 's' : ''}! 🚕'),
+            backgroundColor: const Color(0xFFFFB800),
+            duration: const Duration(seconds: 4),
+          ));
+        }
+        // Device notification (works even when app is in background)
+        NotificationService.showNewTrip(newCount);
       }
       setState(() {
         _activeTrip = active.isNotEmpty ? active.first as Map<String, dynamic> : null;
@@ -148,6 +171,12 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 onPressed: _loadData,
+              ),
+              IconButton(
+                icon: const Icon(Icons.map, color: Colors.white),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const DriverMapScreen())),
+                tooltip: 'My location',
               ),
               IconButton(
                 icon: const Icon(Icons.person, color: Colors.white),

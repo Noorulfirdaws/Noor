@@ -169,6 +169,7 @@ export const getTripById = async (tripId: string) => {
       du.father_name AS driver_father_name,
       du.grandfather_name AS driver_grandfather_name,
       dr.vehicle_model, dr.vehicle_plate, dr.phone AS driver_phone,
+      dr.latitude AS driver_latitude, dr.longitude AS driver_longitude,
       cu.name        AS customer_name,
       cu.father_name AS customer_father_name,
       cu.grandfather_name AS customer_grandfather_name
@@ -188,7 +189,8 @@ export const getTripsByCustomer = async (customerId: string) => {
       du.name        AS driver_name,
       du.father_name AS driver_father_name,
       du.grandfather_name AS driver_grandfather_name,
-      dr.vehicle_model, dr.vehicle_plate, dr.phone AS driver_phone
+      dr.vehicle_model, dr.vehicle_plate, dr.phone AS driver_phone,
+      dr.latitude AS driver_latitude, dr.longitude AS driver_longitude
     FROM trips t
     LEFT JOIN users  du ON t.driver_id = du.id
     LEFT JOIN drivers dr ON dr.user_id = t.driver_id

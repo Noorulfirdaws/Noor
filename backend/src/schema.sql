@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(100) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   role VARCHAR(20) DEFAULT 'customer',
+  reset_code VARCHAR(6),
+  reset_code_expires TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -22,6 +24,8 @@ CREATE TABLE IF NOT EXISTS drivers (
   vehicle_plate VARCHAR(20) NOT NULL,
   status VARCHAR(20) DEFAULT 'pending',
   is_online BOOLEAN DEFAULT FALSE,
+  latitude DECIMAL(10,7),
+  longitude DECIMAL(10,7),
   created_at TIMESTAMP DEFAULT NOW()
 );
 

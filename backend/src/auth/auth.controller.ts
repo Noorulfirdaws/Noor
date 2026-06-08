@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { registerUser, loginUser, updateUserProfile } from './auth.service';
+import { registerUser, loginUser, updateUserProfile, generateResetCode, resetPassword } from './auth.service';
 import { AuthRequest } from './auth.middleware';
 
 export const register = async (req: Request, res: Response) => {
@@ -33,6 +33,38 @@ export const login = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     return res.status(401).json({ message: error.message });
+  }
+};
+
+export const forgotPassword = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const code = await generateResetCode(email);
+    // In production: send code via SMS or email.
+    // For now, return it directly so the admin can share it manually.
+    return res.status(200).json({
+      message: 'Reset code generated. Share this code with the user.',
+      code,
+    });
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+};
+
+export const resetPasswordHandler = async (req: Request, res: Response) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ message: 'Email, code and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    await resetPassword(email, code, newPassword);
+    return res.status(200).json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
   }
 };
 

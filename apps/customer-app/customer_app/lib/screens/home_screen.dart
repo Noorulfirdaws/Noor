@@ -6,6 +6,7 @@ import 'login_screen.dart';
 import 'request_trip_screen.dart';
 import 'complaint_screen.dart';
 import 'profile_screen.dart';
+import 'trip_map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _error;
   Set<String> _ratedTripIds = {};
+  String _filter = 'all'; // all | active | completed | cancelled
+
+  static const _activeStatuses  = {'requested','accepted','driver_arrived','in_progress'};
+  static const _finishedStatuses = {'completed'};
+  static const _cancelledStatuses = {'cancelled','driver_no_show','customer_no_show'};
 
   @override
   void initState() {
@@ -291,15 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('My Trips (${_trips.length})',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-          ),
-          const SizedBox(height: 8),
+          _buildFilterBar(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFB800)))
@@ -325,17 +323,97 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(color: Colors.grey, fontSize: 13)),
                             ],
                           ))
-                        : RefreshIndicator(
-                            onRefresh: _loadTrips,
-                            color: const Color(0xFFFFB800),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              itemCount: _trips.length,
-                              itemBuilder: (context, index) => _buildTripCard(_trips[index]),
-                            ),
-                          ),
+                        : _buildTripList(),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Filter bar ────────────────────────────────────────────────────────────
+
+  List<dynamic> get _filteredTrips {
+    switch (_filter) {
+      case 'active':    return _trips.where((t) => _activeStatuses.contains(t['status'])).toList();
+      case 'completed': return _trips.where((t) => _finishedStatuses.contains(t['status'])).toList();
+      case 'cancelled': return _trips.where((t) => _cancelledStatuses.contains(t['status'])).toList();
+      default:          return _trips;
+    }
+  }
+
+  Widget _buildFilterBar() {
+    final counts = {
+      'all':       _trips.length,
+      'active':    _trips.where((t) => _activeStatuses.contains(t['status'])).length,
+      'completed': _trips.where((t) => _finishedStatuses.contains(t['status'])).length,
+      'cancelled': _trips.where((t) => _cancelledStatuses.contains(t['status'])).length,
+    };
+    final labels = {'all': 'All', 'active': 'Active', 'completed': 'Done', 'cancelled': 'Cancelled'};
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: labels.entries.map((e) {
+            final selected = _filter == e.key;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => setState(() => _filter = e.key),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFFFB800) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: selected ? const Color(0xFFFFB800) : Colors.grey.shade300,
+                    ),
+                    boxShadow: selected
+                        ? [BoxShadow(color: const Color(0xFFFFB800).withOpacity(.3), blurRadius: 6)]
+                        : [],
+                  ),
+                  child: Text(
+                    '${e.value}  ${counts[e.key]}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: selected ? Colors.white : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripList() {
+    final list = _filteredTrips;
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              _filter == 'all' ? 'No trips yet' : 'No ${_filter} trips',
+              style: const TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _loadTrips,
+      color: const Color(0xFFFFB800),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        itemCount: list.length,
+        itemBuilder: (context, index) => _buildTripCard(list[index]),
       ),
     );
   }
@@ -483,9 +561,29 @@ class _HomeScreenState extends State<HomeScreen> {
     if (status == 'requested') {
       actions.add(_outlineBtn('Cancel', Colors.red, () => _cancelTrip(tripId)));
       if (_canReportNoShow(trip)) {
-        actions.add(const SizedBox(width: 8));
         actions.add(_outlineBtn('Driver No-Show', Colors.orange, () => _reportNoShow(tripId)));
       }
+    }
+
+    // Map button for in-progress trips
+    if ({'accepted', 'driver_arrived', 'in_progress'}.contains(status)) {
+      actions.add(ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        icon: const Icon(Icons.map, color: Colors.white, size: 16),
+        label: const Text('Track Driver', style: TextStyle(color: Colors.white, fontSize: 13)),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TripMapScreen(
+            tripId: tripId,
+            pickup: trip['pickup_location'] ?? '',
+            dropoff: trip['dropoff_location'] ?? '',
+          )),
+        ),
+      ));
     }
 
     if (status == 'completed' && !isRated) {

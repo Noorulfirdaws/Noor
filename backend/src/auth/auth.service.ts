@@ -83,6 +83,40 @@ export const getUserById = async (id: string) => {
   return result.rows[0];
 };
 
+export const generateResetCode = async (email: string) => {
+  const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+  if (result.rows.length === 0) throw new Error('No account found with this email');
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  await pool.query(
+    'UPDATE users SET reset_code = $1, reset_code_expires = $2 WHERE email = $3',
+    [code, expires, email]
+  );
+  return code;
+};
+
+export const resetPassword = async (email: string, code: string, newPassword: string) => {
+  const result = await pool.query(
+    'SELECT id, reset_code, reset_code_expires FROM users WHERE email = $1',
+    [email]
+  );
+  if (result.rows.length === 0) throw new Error('No account found with this email');
+
+  const user = result.rows[0];
+  if (user.reset_code !== code) throw new Error('Invalid reset code');
+  if (!user.reset_code_expires || new Date() > new Date(user.reset_code_expires)) {
+    throw new Error('Reset code has expired. Please request a new one.');
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 10);
+  await pool.query(
+    'UPDATE users SET password = $1, reset_code = NULL, reset_code_expires = NULL WHERE id = $2',
+    [hashed, user.id]
+  );
+};
+
 export const updateUserProfile = async (
   id: string,
   data: { name?: string; fatherName?: string; grandfatherName?: string }

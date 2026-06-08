@@ -79,6 +79,15 @@ class ApiService {
     return [];
   }
 
+  static Future<Map<String, dynamic>> getTrip(String tripId) async {
+    final token = await getToken();
+    final response = await http.get(
+      Uri.parse('$baseUrl/trips/$tripId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    return jsonDecode(response.body);
+  }
+
   static Future<Map<String, dynamic>> cancelTrip(String tripId) async {
     final response = await http.put(
       Uri.parse('$baseUrl/trips/$tripId/cancel'),
@@ -126,6 +135,27 @@ class ApiService {
       rated.add(tripId);
       await prefs.setStringList('rated_trips', rated);
     }
+  }
+
+  // ── Password reset ────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> resetPassword(
+      String email, String code, String newPassword) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'code': code, 'newPassword': newPassword}),
+    );
+    return jsonDecode(response.body);
   }
 
   // ── Complaints ────────────────────────────────────────────────────────────
