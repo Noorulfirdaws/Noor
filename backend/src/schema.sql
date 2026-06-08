@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id UUID REFERENCES trips(id),
   customer_id UUID REFERENCES users(id),
-  driver_id UUID REFERENCES drivers(id),
+  driver_id UUID REFERENCES users(id),
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
   comment TEXT,
   created_at TIMESTAMP DEFAULT NOW()

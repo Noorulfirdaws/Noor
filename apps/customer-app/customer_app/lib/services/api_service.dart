@@ -20,6 +20,16 @@ class ApiService {
     await prefs.remove('token');
   }
 
+  static Future<Map<String, String>> _authHeaders({bool json = true}) async {
+    final token = await getToken();
+    return {
+      if (json) 'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> register(
       String name, String fatherName, String grandfatherName,
       String email, String password) async {
@@ -47,25 +57,22 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // ── Trips ─────────────────────────────────────────────────────────────────
+
   static Future<Map<String, dynamic>> requestTrip(
       String pickup, String dropoff) async {
-    final token = await getToken();
     final response = await http.post(
       Uri.parse('$baseUrl/trips/request'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: await _authHeaders(),
       body: jsonEncode({'pickupLocation': pickup, 'dropoffLocation': dropoff}),
     );
     return jsonDecode(response.body);
   }
 
   static Future<List<dynamic>> getMyTrips() async {
-    final token = await getToken();
     final response = await http.get(
       Uri.parse('$baseUrl/trips/my'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await _authHeaders(json: false),
     );
     final data = jsonDecode(response.body);
     if (data is List) return data;
@@ -73,11 +80,51 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> cancelTrip(String tripId) async {
-    final token = await getToken();
     final response = await http.put(
       Uri.parse('$baseUrl/trips/$tripId/cancel'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await _authHeaders(json: false),
     );
     return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> reportDriverNoShow(String tripId) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/trips/$tripId/driver-no-show'),
+      headers: await _authHeaders(json: false),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // ── Reviews ───────────────────────────────────────────────────────────────
+
+  static Future<Map<String, dynamic>> submitReview(
+      String tripId, String driverId, int rating, String comment) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/reviews'),
+      headers: await _authHeaders(),
+      body: jsonEncode({
+        'tripId': tripId,
+        'driverId': driverId,
+        'rating': rating,
+        'comment': comment,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // ── Local: rated trip IDs ─────────────────────────────────────────────────
+
+  static Future<Set<String>> getRatedTripIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('rated_trips')?.toSet() ?? {};
+  }
+
+  static Future<void> markTripRated(String tripId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rated = prefs.getStringList('rated_trips') ?? [];
+    if (!rated.contains(tripId)) {
+      rated.add(tripId);
+      await prefs.setStringList('rated_trips', rated);
+    }
   }
 }

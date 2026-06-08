@@ -15,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _trips = [];
   bool _isLoading = true;
   String? _error;
+  Set<String> _ratedTripIds = {};
 
   @override
   void initState() {
@@ -25,8 +26,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadTrips() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final trips = await ApiService.getMyTrips();
-      setState(() { _trips = trips; _isLoading = false; });
+      final results = await Future.wait([
+        ApiService.getMyTrips(),
+        ApiService.getRatedTripIds(),
+      ]);
+      setState(() {
+        _trips = results[0] as List<dynamic>;
+        _ratedTripIds = results[1] as Set<String>;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() { _isLoading = false; _error = 'Failed to load trips. Tap to retry.'; });
     }
@@ -39,16 +47,186 @@ class _HomeScreenState extends State<HomeScreen> {
         .join(' ');
   }
 
-  Color _getStatusColor(String? status) {
+  // ── Status helpers ────────────────────────────────────────────────────────
+
+  Color _statusColor(String? status) {
     switch (status) {
-      case 'requested': return Colors.orange;
-      case 'accepted': return Colors.blue;
-      case 'in_progress': return Colors.green;
-      case 'completed': return Colors.grey;
-      case 'cancelled': return Colors.red;
-      default: return Colors.grey;
+      case 'requested':        return Colors.orange;
+      case 'accepted':         return Colors.blue;
+      case 'driver_arrived':   return const Color(0xFF9C27B0);
+      case 'in_progress':      return Colors.green;
+      case 'completed':        return Colors.grey;
+      case 'cancelled':        return Colors.red;
+      case 'driver_no_show':   return Colors.red;
+      case 'customer_no_show': return Colors.deepOrange;
+      default:                 return Colors.grey;
     }
   }
+
+  String _statusLabel(String? status) {
+    switch (status) {
+      case 'requested':        return 'Waiting for driver';
+      case 'accepted':         return 'Driver is coming';
+      case 'driver_arrived':   return 'Driver arrived!';
+      case 'in_progress':      return 'Trip in progress';
+      case 'completed':        return 'Completed';
+      case 'cancelled':        return 'Cancelled';
+      case 'driver_no_show':   return 'Driver no-show';
+      case 'customer_no_show': return 'You no-showed';
+      default:                 return status ?? '';
+    }
+  }
+
+  String _fmtDate(String? raw) {
+    if (raw == null) return '';
+    final dt = DateTime.tryParse(raw);
+    if (dt == null) return '';
+    return '${dt.day.toString().padLeft(2,'0')}/${dt.month.toString().padLeft(2,'0')}/${dt.year}  ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}';
+  }
+
+  bool _canReportNoShow(Map<String, dynamic> trip) {
+    final created = DateTime.tryParse(trip['created_at'] ?? '');
+    if (created == null) return false;
+    return DateTime.now().difference(created).inMinutes >= 10;
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────────────
+
+  Future<void> _cancelTrip(String id) async {
+    try {
+      await ApiService.cancelTrip(id);
+      if (mounted) _loadTrips();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _reportNoShow(String id) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Report Driver No-Show'),
+        content: const Text('The driver did not arrive? Your deposit will be refunded.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      final result = await ApiService.reportDriverNoShow(id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Reported'), backgroundColor: Colors.green));
+        _loadTrips();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _openRating(Map<String, dynamic> trip) async {
+    final driverId = trip['driver_id']?.toString();
+    if (driverId == null) return;
+
+    int selectedRating = 0;
+    final commentController = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 24, right: 24, top: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Rate your trip', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('${trip['pickup_location']} → ${trip['dropoff_location']}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => GestureDetector(
+                  onTap: () => setSheet(() => selectedRating = i + 1),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(
+                      i < selectedRating ? Icons.star : Icons.star_border,
+                      color: const Color(0xFFFFB800),
+                      size: 42,
+                    ),
+                  ),
+                )),
+              ),
+              const SizedBox(height: 8),
+              Center(child: Text(
+                ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][selectedRating],
+                style: TextStyle(
+                  color: selectedRating > 0 ? const Color(0xFFFFB800) : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              )),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Leave a comment (optional)',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: selectedRating == 0 ? Colors.grey : const Color(0xFFFFB800),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: selectedRating == 0 ? null : () async {
+                    Navigator.pop(ctx);
+                    try {
+                      final res = await ApiService.submitReview(
+                          trip['id'].toString(), driverId, selectedRating, commentController.text.trim());
+                      if (!mounted) return;
+                      if (res['review'] != null) {
+                        await ApiService.markTripRated(trip['id'].toString());
+                        setState(() => _ratedTripIds.add(trip['id'].toString()));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Thank you for your rating! ⭐'), backgroundColor: Colors.green));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(res['message'] ?? 'Failed to submit rating')));
+                      }
+                    } catch (_) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Connection error. Please try again.')));
+                    }
+                    commentController.dispose();
+                  },
+                  child: const Text('Submit Rating', style: TextStyle(fontSize: 17, color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +237,10 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFFFFB800),
         title: const Text('Djib Taxi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _loadTrips,
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
@@ -77,8 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Hello, ${_fullName(auth.user)}!', style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
-                const Text('Where are you going today?', style: TextStyle(color: Colors.white70)),
+                Text('Hello, ${_fullName(auth.user)}!',
+                    style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold)),
+                const Text('Where are you going today?',
+                    style: TextStyle(color: Colors.white70)),
               ],
             ),
           ),
@@ -87,62 +271,221 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SizedBox(
               width: double.infinity,
               height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RequestTripScreen())).then((_) => _loadTrips()),
-                child: const Text('Request a Taxi', style: TextStyle(fontSize: 18, color: Colors.white)),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                icon: const Icon(Icons.local_taxi, color: Colors.white),
+                label: const Text('Request a Taxi', style: TextStyle(fontSize: 18, color: Colors.white)),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const RequestTripScreen()))
+                    .then((_) => _loadTrips()),
               ),
             ),
           ),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Align(alignment: Alignment.centerLeft, child: Text('My Trips', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('My Trips (${_trips.length})',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(height: 8),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFB800)))
                 : _error != null
-                    ? Center(child: GestureDetector(onTap: _loadTrips, child: Text(_error!, style: const TextStyle(color: Colors.red))))
+                    ? Center(child: GestureDetector(
+                        onTap: _loadTrips,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.wifi_off, color: Colors.grey, size: 48),
+                            const SizedBox(height: 8),
+                            Text(_error!, style: const TextStyle(color: Colors.red)),
+                          ],
+                        )))
                     : _trips.isEmpty
-                    ? const Center(child: Text('No trips yet!'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _trips.length,
-                        itemBuilder: (context, index) {
-                          final trip = _trips[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(trip['pickup_location'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  Text(trip['dropoff_location'] ?? ''),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: _getStatusColor(trip['status']), borderRadius: BorderRadius.circular(8)),
-                                        child: Text(trip['status'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                                      ),
-                                      if (trip['status'] == 'requested')
-                                        TextButton(
-                                          onPressed: () async {
-                                            await ApiService.cancelTrip(trip['id'].toString());
-                                            if (mounted) _loadTrips();
-                                          },
-                                          child: const Text('Cancel', style: TextStyle(color: Colors.red)),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                        ? const Center(child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.directions_car_outlined, size: 64, color: Colors.grey),
+                              SizedBox(height: 12),
+                              Text('No trips yet', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                              Text('Request your first taxi above!',
+                                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            ],
+                          ))
+                        : RefreshIndicator(
+                            onRefresh: _loadTrips,
+                            color: const Color(0xFFFFB800),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              itemCount: _trips.length,
+                              itemBuilder: (context, index) => _buildTripCard(_trips[index]),
                             ),
-                          );
-                        },
-                      ),
+                          ),
           ),
         ],
       ),
+    );
+  }
+
+  // ── Trip card ─────────────────────────────────────────────────────────────
+
+  Widget _buildTripCard(Map<String, dynamic> trip) {
+    final status = trip['status'] as String? ?? '';
+    final tripId = trip['id'].toString();
+    final isRated = _ratedTripIds.contains(tripId);
+    final fare = trip['fare'];
+    final deposit = trip['deposit'];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 2,
+      child: Column(
+        children: [
+          // Status bar at top
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: _statusColor(status).withOpacity(0.12),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 8, height: 8,
+                  decoration: BoxDecoration(color: _statusColor(status), shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Text(_statusLabel(status),
+                    style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w700, fontSize: 13)),
+                const Spacer(),
+                Text(_fmtDate(trip['created_at']),
+                    style: const TextStyle(color: Colors.grey, fontSize: 11)),
+              ],
+            ),
+          ),
+
+          // Trip locations
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.circle, color: Colors.green, size: 10),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(trip['pickup_location'] ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+                ]),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Container(width: 2, height: 14, color: Colors.grey.shade300),
+                ),
+                Row(children: [
+                  const Icon(Icons.location_on, color: Colors.red, size: 10),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(trip['dropoff_location'] ?? '',
+                      style: const TextStyle(fontSize: 14))),
+                ]),
+
+                // Fare info
+                if (status == 'completed' && fare != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.attach_money, size: 16, color: Colors.green),
+                        Text('Fare: ${fare} DJF  |  Deposit: ${deposit ?? 200} DJF',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // Driver no-show info
+                if (status == 'driver_no_show') ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                    child: const Row(children: [
+                      Icon(Icons.info_outline, color: Colors.red, size: 16),
+                      SizedBox(width: 6),
+                      Text('Your deposit will be refunded.',
+                          style: TextStyle(color: Colors.red, fontSize: 12)),
+                    ]),
+                  ),
+                ],
+
+                // Action buttons
+                const SizedBox(height: 10),
+                _buildActions(trip, status, tripId, isRated),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActions(Map<String, dynamic> trip, String status, String tripId, bool isRated) {
+    final actions = <Widget>[];
+
+    if (status == 'requested') {
+      actions.add(_outlineBtn('Cancel', Colors.red, () => _cancelTrip(tripId)));
+      if (_canReportNoShow(trip)) {
+        actions.add(const SizedBox(width: 8));
+        actions.add(_outlineBtn('Driver No-Show', Colors.orange, () => _reportNoShow(tripId)));
+      }
+    }
+
+    if (status == 'completed' && !isRated) {
+      actions.add(SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFB800),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.star, color: Colors.white, size: 18),
+          label: const Text('Rate this trip', style: TextStyle(color: Colors.white)),
+          onPressed: () => _openRating(trip),
+        ),
+      ));
+    }
+
+    if (status == 'completed' && isRated) {
+      actions.add(const Row(children: [
+        Icon(Icons.star, color: Color(0xFFFFB800), size: 16),
+        SizedBox(width: 4),
+        Text('You rated this trip', style: TextStyle(color: Colors.grey, fontSize: 13)),
+      ]));
+    }
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+    return Row(children: actions);
+  }
+
+  Widget _outlineBtn(String label, Color color, VoidCallback onTap) {
+    return OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      ),
+      onPressed: onTap,
+      child: Text(label, style: const TextStyle(fontSize: 13)),
     );
   }
 }
