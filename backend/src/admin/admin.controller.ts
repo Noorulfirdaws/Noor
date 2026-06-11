@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { AuthRequest } from '../auth/auth.middleware';
-import { getStats, getPendingDrivers, getOpenComplaints } from './admin.service';
+import { AuthRequest, auditLog } from '../auth/auth.middleware';
+import { getStats, getPendingDrivers } from './admin.service';
 import { getAllUsers, registerUser } from '../auth/auth.service';
 import { getAllDrivers, approveDriver, rejectDriver } from '../drivers/drivers.service';
 import { getTrips } from '../trips/trips.service';
@@ -11,108 +11,102 @@ dotenv.config();
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const stats = await getStats();
-    return res.status(200).json(stats);
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    return res.status(200).json(await getStats());
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const getAllUsersAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const allUsers = await getAllUsers();
-    return res.status(200).json(allUsers);
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    return res.status(200).json(await getAllUsers());
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const getAllDriversAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const driverList = await getAllDrivers();
-    return res.status(200).json(driverList);
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    return res.status(200).json(await getAllDrivers());
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const getPending = async (req: AuthRequest, res: Response) => {
   try {
-    const pending = await getPendingDrivers();
-    return res.status(200).json(pending);
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    return res.status(200).json(await getPendingDrivers());
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const approveDriverAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const driver = await approveDriver(id);
+    const driver = await approveDriver(String(req.params.id));
+    await auditLog(req.user!.id, req.user!.role, 'APPROVE_DRIVER',
+      'driver', String(req.params.id), {}, String(req.ip || ''));
     return res.status(200).json({ message: 'Driver approved', driver });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const rejectDriverAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const id = req.params.id as string;
-    const driver = await rejectDriver(id);
+    const driver = await rejectDriver(String(req.params.id));
+    await auditLog(req.user!.id, req.user!.role, 'REJECT_DRIVER',
+      'driver', String(req.params.id), {}, String(req.ip || ''));
     return res.status(200).json({ message: 'Driver rejected', driver });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const getAllTripsAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const allTrips = await getTrips();
-    return res.status(200).json(allTrips);
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    return res.status(200).json(await getTrips());
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const getAllComplaintsAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const allComplaints = await getAllComplaints();
-    const open = allComplaints.filter((c: any) => c.status === 'open');
-    return res.status(200).json({ open: open.length, complaints: open });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    const all = await getAllComplaints();
+    return res.status(200).json({ total: all.length, complaints: all });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const resolveComplaintAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const id = req.params.id as string;
     const { status } = req.body;
-    const complaint = await updateComplaintStatus(id, status);
+    const complaint = await updateComplaintStatus(String(req.params.id), status);
+    await auditLog(req.user!.id, req.user!.role, 'UPDATE_COMPLAINT',
+      'complaint', String(req.params.id), { status }, String(req.ip || ''));
     return res.status(200).json({ message: 'Complaint updated', complaint });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };
 
 export const setupAdmin = async (req: Request, res: Response) => {
   try {
     const { name, fatherName, grandfatherName, email, password, secret } = req.body;
-    if (secret !== process.env.ADMIN_SECRET) {
+    if (secret !== process.env.ADMIN_SECRET)
       return res.status(403).json({ message: 'Invalid setup secret' });
-    }
-    if (!name || !fatherName || !grandfatherName || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-    const existing = await pool.query(
-      "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-    );
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ message: 'Admin already exists' });
-    }
-    const result = await registerUser(name, fatherName, grandfatherName, email, password, 'admin' as any);
-    return res.status(201).json({ message: 'Admin account created', user: result.user, token: result.token });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    if (!name || !email || !password)
+      return res.status(400).json({ message: 'name, email and password required' });
+
+    const existing = await pool.query("SELECT id FROM users WHERE role='admin' LIMIT 1");
+    if (existing.rows.length > 0)
+      return res.status(400).json({ message: 'Admin already exists. Use /api/super-admin/staff to create more.' });
+
+    const result = await registerUser(name, fatherName || '', grandfatherName || '', email, password, 'admin' as any);
+    return res.status(201).json({ message: 'Admin created', user: result.user, token: result.token });
+  } catch (err: any) {
+    return res.status(400).json({ message: err.message });
   }
 };

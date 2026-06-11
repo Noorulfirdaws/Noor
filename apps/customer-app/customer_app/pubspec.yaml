@@ -1,5 +1,5 @@
-name: customer_app
-description: "A new Flutter project."
+name: djibride_passenger
+description: "DjibRide — Application passager. Plateforme de mobilité numérique à Djibouti."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -39,6 +39,8 @@ dependencies:
   provider: ^6.1.5+1
   flutter_map: ^7.0.2
   latlong2: ^0.9.0
+  google_maps_flutter: ^2.9.0
+  connectivity_plus: ^6.1.4
 
 dev_dependencies:
   flutter_test:

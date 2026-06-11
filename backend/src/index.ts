@@ -9,11 +9,14 @@ import tripRoutes from './trips/trips.routes';
 import reviewRoutes from './reviews/reviews.routes';
 import complaintRoutes from './complaints/complaints.routes';
 import adminRoutes from './admin/admin.routes';
+import paymentRoutes from './payments/payment.routes';
+import superAdminRoutes from './super-admin/super-admin.routes';
+import { authRateLimit, tripRateLimit } from './middleware/rateLimit';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 app.use(cors({
   origin: '*',
@@ -35,15 +38,28 @@ app.get('/', (req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);app.get('/test', (req, res) => {
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  next();
+});
+
+app.get('/test', (req, res) => {
   res.json({ message: 'test works', headers: req.headers });
 });
-app.use('/api/users', userRoutes);
-app.use('/api/drivers', driverRoutes);
-app.use('/api/trips', tripRoutes);
-app.use('/api/reviews', reviewRoutes);
+
+app.use('/api/auth',       authRateLimit, authRoutes);
+app.use('/api/users',      userRoutes);
+app.use('/api/drivers',    driverRoutes);
+app.use('/api/trips',      tripRateLimit, tripRoutes);
+app.use('/api/reviews',    reviewRoutes);
 app.use('/api/complaints', complaintRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin',        adminRoutes);
+app.use('/api/payments',     paymentRoutes);
+app.use('/api/super-admin',  superAdminRoutes);
 
 const start = async () => {
   await initDatabase();

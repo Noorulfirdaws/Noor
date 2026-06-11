@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/offline_cache.dart';
+import '../services/connectivity_service.dart';
 import 'login_screen.dart';
 import 'request_trip_screen.dart';
 import 'complaint_screen.dart';
@@ -33,18 +35,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadTrips() async {
     setState(() { _isLoading = true; _error = null; });
+
+    final connectivity = context.read<ConnectivityService>();
+
+    if (!connectivity.isOnline) {
+      // Serve from cache immediately
+      final cached = await OfflineCache.loadTrips();
+      final rated  = await ApiService.getRatedTripIds();
+      setState(() {
+        _trips = cached;
+        _ratedTripIds = rated;
+        _isLoading = false;
+        _error = cached.isEmpty ? 'Hors ligne — aucune donnée en cache.' : null;
+      });
+      return;
+    }
+
     try {
       final results = await Future.wait([
         ApiService.getMyTrips(),
         ApiService.getRatedTripIds(),
       ]);
+      final trips = results[0] as List<dynamic>;
+      await OfflineCache.saveTrips(trips); // persist for offline use
       setState(() {
-        _trips = results[0] as List<dynamic>;
+        _trips = trips;
         _ratedTripIds = results[1] as Set<String>;
         _isLoading = false;
       });
     } catch (e) {
-      setState(() { _isLoading = false; _error = 'Failed to load trips. Tap to retry.'; });
+      // Network failed — fall back to cache
+      final cached = await OfflineCache.loadTrips();
+      setState(() {
+        _trips = cached;
+        _isLoading = false;
+        _error = cached.isEmpty ? 'Connexion impossible. Vérifiez votre réseau.' : null;
+      });
     }
   }
 
@@ -169,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Icon(
                       i < selectedRating ? Icons.star : Icons.star_border,
-                      color: const Color(0xFFFFB800),
+                      color: const Color(0xFFF97316),
                       size: 42,
                     ),
                   ),
@@ -179,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(child: Text(
                 ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'][selectedRating],
                 style: TextStyle(
-                  color: selectedRating > 0 ? const Color(0xFFFFB800) : Colors.grey,
+                  color: selectedRating > 0 ? const Color(0xFFF97316) : Colors.grey,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
                 ),
@@ -199,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 50,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedRating == 0 ? Colors.grey : const Color(0xFFFFB800),
+                    backgroundColor: selectedRating == 0 ? Colors.grey : const Color(0xFFF97316),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: selectedRating == 0 ? null : () async {
@@ -242,8 +268,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFB800),
-        title: const Text('Djib Taxi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFFF97316),
+        title: const Text('DjibRide', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
@@ -263,12 +289,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Consumer<ConnectivityService>(
+        builder: (context, conn, child) => Column(
         children: [
+          if (!conn.isOnline) const OfflineBanner(),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            color: const Color(0xFFFFB800),
+            color: const Color(0xFFF97316),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -327,6 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -364,13 +393,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: selected ? const Color(0xFFFFB800) : Colors.white,
+                    color: selected ? const Color(0xFFF97316) : Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: selected ? const Color(0xFFFFB800) : Colors.grey.shade300,
+                      color: selected ? const Color(0xFFF97316) : Colors.grey.shade300,
                     ),
                     boxShadow: selected
-                        ? [BoxShadow(color: const Color(0xFFFFB800).withOpacity(.3), blurRadius: 6)]
+                        ? [BoxShadow(color: const Color(0xFFF97316).withOpacity(.3), blurRadius: 6)]
                         : [],
                   ),
                   child: Text(
@@ -409,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     return RefreshIndicator(
       onRefresh: _loadTrips,
-      color: const Color(0xFFFFB800),
+      color: const Color(0xFFF97316),
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         itemCount: list.length,
@@ -591,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFFB800),
+            backgroundColor: const Color(0xFFF97316),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           icon: const Icon(Icons.star, color: Colors.white, size: 18),

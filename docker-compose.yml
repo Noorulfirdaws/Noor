@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: djibtaxi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: djibtaxi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: djib123
+    ports:
+      - '5433:5432'
+    volumes:
+      - djibtaxi-db-data:/var/lib/postgresql/data
+      - ./backend/src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: djibtaxi-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PORT: 4000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: djibtaxi
+      DB_USER: postgres
+      DB_PASSWORD: djib123
+      JWT_SECRET: djib-taxi-super-secret-key-2024
+    ports:
+      - '4000:4000'
+
+volumes:
+  djibtaxi-db-data:

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'providers/auth_provider.dart';
+import 'services/connectivity_service.dart';
 
 void main() {
   runApp(const DjibTaxiApp());
@@ -15,6 +16,7 @@ class DjibTaxiApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ConnectivityService()),
       ],
       child: MaterialApp(
         title: 'Djib Taxi',
