@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "DjiRide Admin Panel",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-s", ".", "-l", "5180", "--no-clipboard"],
+      "port": 5180
+    }
+  ]
+}
