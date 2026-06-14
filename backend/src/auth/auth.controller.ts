@@ -37,19 +37,26 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+
+  // Always return the same generic response — never reveal whether the
+  // account exists, and NEVER return the reset code to the caller
+  // (returning it enables trivial account takeover).
+  const generic = {
+    message: 'Si un compte existe pour cet email, un code de réinitialisation a été envoyé.',
+  };
+
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email is required' });
     const code = await generateResetCode(email);
-    // In production: send code via SMS or email.
-    // For now, return it directly so the admin can share it manually.
-    return res.status(200).json({
-      message: 'Reset code generated. Share this code with the user.',
-      code,
-    });
-  } catch (error: any) {
-    return res.status(400).json({ message: error.message });
+    // TODO: deliver via SMS/email provider. Until then, the code is only
+    // visible in server logs so the platform owner can relay it manually.
+    console.log(`[PasswordReset] code for ${email}: ${code}`);
+  } catch {
+    // Swallow "no account" errors so attackers can't enumerate emails.
   }
+
+  return res.status(200).json(generic);
 };
 
 export const resetPasswordHandler = async (req: Request, res: Response) => {

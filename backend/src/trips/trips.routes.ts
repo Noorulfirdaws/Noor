@@ -12,12 +12,12 @@ import {
   getTrip,
   myTrips
 } from './trips.controller';
-import { protect } from '../auth/auth.middleware';
+import { protect, requireAgent } from '../auth/auth.middleware';
 
 const router = Router();
 
 router.post('/request', protect, request);
-router.get('/', protect, getAllTrips);
+router.get('/', protect, requireAgent, getAllTrips); // staff only — listing every trip leaks PII
 router.get('/my', protect, myTrips);
 router.get('/:id', protect, getTrip);
 router.put('/:id/accept', protect, accept);

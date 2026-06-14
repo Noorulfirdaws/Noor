@@ -115,10 +115,18 @@ export const getAllTrips = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const STAFF_ROLES = ['agent', 'admin', 'super_admin'];
+
 export const getTrip = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const trip = await getTripById(id);
+    // Only the trip's own customer/driver — or staff — may view it (anti-IDOR)
+    const uid = req.user!.id;
+    const isParty = trip.customer_id === uid || trip.driver_id === uid;
+    if (!isParty && !STAFF_ROLES.includes(req.user!.role)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
     return res.status(200).json(trip);
   } catch (error: any) {
     return res.status(404).json({ message: error.message });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { protect, requireRole } from '../auth/auth.middleware';
+import { protect, requireAdmin } from '../auth/auth.middleware';
 import { paymentRateLimit } from '../middleware/rateLimit';
 import {
   handleWaafiWebhook,
@@ -18,6 +18,6 @@ router.post('/webhook/dmoney', paymentRateLimit, handleDmoneyWebhook);
 router.get('/my', protect, getMyTransactions);
 
 // Admin only
-router.get('/', protect, requireRole('admin'), getAdminTransactions);
+router.get('/', protect, requireAdmin, getAdminTransactions);
 
 export default router;

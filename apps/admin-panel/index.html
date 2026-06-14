@@ -426,6 +426,17 @@ function togglePwd(id, eye) {
   eye.textContent = show ? '🙈' : '👁';
 }
 
+// Escape user-controlled strings before injecting into innerHTML (anti-XSS)
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const API = 'http://localhost:4000/api';
 let token = localStorage.getItem('djib_token');
 let currentUser = JSON.parse(localStorage.getItem('djib_user') || 'null');
@@ -655,8 +666,8 @@ async function loadUsers() {
       <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Inscription</th></tr></thead>
       <tbody>${users.filter(u=>u.role==='customer').map(u=>`
         <tr>
-          <td><strong>${u.name||'—'}</strong></td>
-          <td>${u.email}</td>
+          <td><strong>${esc(u.name)||'—'}</strong></td>
+          <td>${esc(u.email)}</td>
           <td><span class="badge badge-customer">Passager</span></td>
           <td>${fmtDate(u.created_at)}</td>
         </tr>`).join('')}
@@ -687,10 +698,10 @@ function renderDrivers(list) {
     <thead><tr><th>Nom</th><th>Téléphone</th><th>Véhicule</th><th>Plaque</th><th>Statut</th><th>Actions</th></tr></thead>
     <tbody>${list.map(d=>`
       <tr>
-        <td><strong>${d.name}</strong><br><small style="color:#94a3b8">${d.email}</small></td>
-        <td>${d.phone||'—'}</td>
-        <td>${d.vehicle_model||'—'}</td>
-        <td>${d.vehicle_plate||'—'}</td>
+        <td><strong>${esc(d.name)}</strong><br><small style="color:#94a3b8">${esc(d.email)}</small></td>
+        <td>${esc(d.phone)||'—'}</td>
+        <td>${esc(d.vehicle_model)||'—'}</td>
+        <td>${esc(d.vehicle_plate)||'—'}</td>
         <td><span class="badge badge-${d.status}">${statusLabel(d.status)}</span></td>
         <td>${d.status==='pending' ? `
           <button class="btn-approve" onclick="approveDriver('${d.id}')">Approuver</button>
@@ -719,9 +730,9 @@ async function loadTrips() {
       <thead><tr><th>Départ</th><th>Destination</th><th>Passager</th><th>Statut</th><th>Montant</th><th>Date</th></tr></thead>
       <tbody>${trips.map(t=>`
         <tr>
-          <td>${t.pickup_location}</td>
-          <td>${t.dropoff_location}</td>
-          <td>${t.customer_name||'—'}</td>
+          <td>${esc(t.pickup_location)}</td>
+          <td>${esc(t.dropoff_location)}</td>
+          <td>${esc(t.customer_name)||'—'}</td>
           <td><span class="badge badge-${t.status}">${statusLabel(t.status)}</span></td>
           <td>${t.fare ? fmtCurrency(t.fare)+' DJF' : '—'}</td>
           <td>${fmtDate(t.created_at)}</td>
@@ -753,8 +764,8 @@ function renderComplaints(list) {
     <thead><tr><th>Raison</th><th>Description</th><th>Statut</th><th>Date</th><th>Action</th></tr></thead>
     <tbody>${list.map(c=>`
       <tr>
-        <td><strong>${c.reason}</strong></td>
-        <td style="max-width:200px;white-space:normal">${c.description||'—'}</td>
+        <td><strong>${esc(c.reason)}</strong></td>
+        <td style="max-width:200px;white-space:normal">${esc(c.description)||'—'}</td>
         <td><span class="badge badge-${c.status}">${statusLabel(c.status)}</span></td>
         <td>${fmtDate(c.created_at)}</td>
         <td>
@@ -844,9 +855,9 @@ async function loadStaff() {
       <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Depuis</th><th>Actions</th></tr></thead>
       <tbody>${staff.map(s=>`
         <tr>
-          <td><strong>${s.name}</strong></td>
-          <td>${s.email}</td>
-          <td><span class="badge badge-${s.role}-row">${ROLE_LABELS[s.role]||s.role}</span></td>
+          <td><strong>${esc(s.name)}</strong></td>
+          <td>${esc(s.email)}</td>
+          <td><span class="badge badge-${esc(s.role)}-row">${ROLE_LABELS[s.role]||esc(s.role)}</span></td>
           <td>${fmtDate(s.created_at)}</td>
           <td>${s.role!=='super_admin'&&s.id!==currentUser.id ? `
             <select class="status-select" onchange="changeRole('${s.id}',this.value)" style="margin-right:6px">

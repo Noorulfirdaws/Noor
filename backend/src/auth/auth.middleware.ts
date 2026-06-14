@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../database';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'djib-taxi-super-secret-key-2024';
+import { JWT_SECRET } from '../config';
 
 export interface AuthRequest extends Request {
   user?: { id: string; email: string; role: string; };

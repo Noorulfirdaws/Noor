@@ -1,11 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 import pool from '../database';
-
-dotenv.config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'djib-taxi-super-secret-key-2024';
+import { JWT_SECRET } from '../config';
 
 export interface User {
   id: string;

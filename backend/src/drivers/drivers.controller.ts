@@ -13,6 +13,8 @@ import {
 } from './drivers.service';
 import { getUserById } from '../auth/auth.service';
 
+const ADMIN_ROLES = ['admin', 'super_admin'];
+
 export const register = async (req: AuthRequest, res: Response) => {
   try {
     const { phone, licenseNumber, vehicleModel, vehiclePlate } = req.body;
@@ -111,6 +113,11 @@ export const reject = async (req: AuthRequest, res: Response) => {
 export const toggleOnline = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
+    // Only the owning driver (or an admin) may toggle this driver's online status
+    const target = await getDriverById(id);
+    if (target.user_id !== req.user!.id && !ADMIN_ROLES.includes(req.user!.role)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
     const driver = await toggleDriverOnline(id);
     return res.status(200).json({ message: `Driver is now ${driver.is_online ? 'online' : 'offline'}`, driver });
   } catch (error: any) {
